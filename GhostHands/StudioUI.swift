@@ -112,15 +112,21 @@ struct LessonPanel: View {
                 VStack(alignment:.leading,spacing:6) {Text("START SHAPE").font(.caption2.monospaced());PaperFinishDiagram(step:model.lesson,progress:0).frame(height:110)}
                 VStack(alignment:.leading,spacing:6) {Text("FINISH SHAPE").font(.caption2.monospaced());PaperFinishDiagram(step:model.lesson).frame(height:110)}
             }
-            Text(model.lesson.phase(at:model.elapsed)).font(.caption.monospaced()).padding(8).overlay(Rectangle().stroke(.white.opacity(0.3)))
-            Text(model.lesson.title).font(.title3.bold())
-            Text(model.lesson.instruction).font(.system(size:17)).fixedSize(horizontal:false,vertical:true)
-            Text(model.lesson.check).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
-            HStack {
-                Button {model.setStep(model.step-1)} label:{Image(systemName:"arrow.left")}.disabled(model.step==0 || model.busyRecording)
-                Spacer()
-                Button(model.step==PaperStep.all.count-1 ? "FINISHED" : "NEXT STEP") {model.setStep(model.step+1)}.disabled(model.step==PaperStep.all.count-1 || model.busyRecording)
-            }
+            // Reserve a fixed reading area so the tabletop touch targets never move.
+            ScrollView {
+                VStack(alignment:.leading,spacing:14) {
+                    Text(model.lesson.phase(at:model.elapsed)).font(.caption.monospaced()).padding(8).overlay(Rectangle().stroke(.white.opacity(0.3)))
+                    Text(model.lesson.title).font(.title3.bold())
+                    Text(model.lesson.instruction).font(.system(size:17)).fixedSize(horizontal:false,vertical:true)
+                    Text(model.lesson.check).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+                }.frame(maxWidth:.infinity,alignment:.leading)
+            }.frame(height:250).id(model.step)
+            HStack(spacing:12) {
+                Button {model.setStep(model.step-1)} label:{Image(systemName:"arrow.left")}
+                    .frame(width:76).disabled(model.step==0 || model.busyRecording)
+                Button(model.step==PaperStep.all.count-1 ? "FINISHED" : "NEXT STEP") {model.setStep(model.step+1)}
+                    .frame(maxWidth:.infinity).disabled(model.step==PaperStep.all.count-1 || model.busyRecording)
+            }.frame(height:52)
             HStack {
                 Button("SHOW START") {model.seek(0)}
                 Button("SHOW FINISH") {model.seek(model.selected?.duration ?? 8)}

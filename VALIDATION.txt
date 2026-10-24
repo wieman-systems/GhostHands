@@ -1,3 +1,9 @@
+BUILD 7 — OCTOBER 24, 2026
+Fixed lesson navigation position with a fixed-height reading area and fixed button row.
+PASS: Signed device build and simulator build. Strict codesign verification.
+PASS: Physical build 7 installation; recordings backed up before update.
+Core logic unchanged; 34-test result below belongs to build 6.
+
 BUILD 6 — OCTOBER 24, 2026
 PASS: 34 tests, zero failures. Tests include stable automatic fingertip placement,
 loss/reacquisition, adjustment axes, playback/recording/legacy data, paper geometry,

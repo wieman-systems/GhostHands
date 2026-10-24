@@ -50,7 +50,7 @@ Source files are in `GhostHands/`.
 swift test --scratch-path /tmp/GhostHandsTests --disable-sandbox
 ```
 
-Build 6: 34 tests passed, signed device and simulator builds succeeded, and the simulator view was inspected. The headset connection was unavailable for build 6 deployment. Direct-touch alignment and complete beginner tutorial usability still require worn-headset validation.
+Build 6: 34 core tests passed. Build 7 fixes lesson controls in place beneath a fixed-height, scrollable reading area. Signed device and simulator builds succeeded. Direct-touch alignment and complete beginner tutorial usability still require worn-headset validation.
 
 ## Data and assets
 
