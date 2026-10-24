@@ -38,7 +38,7 @@ final class StudioScene {
     func render(model: StudioModel, frame: MotionFrame?, live: MotionFrame) {
         root.transform = Transform(matrix: model.workspace)
         mechanical.update(model:model);lab.update(model);detailed.update(model)
-        videoPanel.position=[0,model.videoHeight,model.videoDepth];videoPanel.isEnabled=model.placed && model.dockedVideo && !model.adjustingPlacement
+        videoPanel.position=[0,model.videoHeight,model.videoDepth];videoPanel.children.first?.scale=SIMD3(repeating:model.videoScale);videoPanel.isEnabled=model.placed && model.dockedVideo && !model.adjustingPlacement
         let avatarFrame=model.busyRecording ? MotionFrame(time:live.time,left:live.left?.transformed(by:simd_inverse(model.workspace)),right:live.right?.transformed(by:simd_inverse(model.workspace))) : frame
         human.update(frame:avatarFrame,enabled:model.avatarEnabled && model.placed && (model.busyRecording || model.selected?.isIllustration == false),tableHeight:model.avatarTableHeight)
         moveControls.isEnabled=model.placed && model.adjustingPlacement
@@ -116,7 +116,7 @@ struct SpatialStudio: View {
                     panel.orientation=simd_quatf(angle:-Float.pi/2,axis:[1,0,0]);scene.panels.addChild(panel)
                 }
             }
-            if let video=attachments.entity(for:"dockedVideo") {video.scale=SIMD3(repeating:0.55);video.orientation=simd_quatf(angle:-0.12,axis:[1,0,0]);scene.videoPanel.addChild(video)}
+            if let video=attachments.entity(for:"dockedVideo") {video.scale=SIMD3(repeating:model.videoScale);video.orientation=simd_quatf(angle:-0.12,axis:[1,0,0]);scene.videoPanel.addChild(video)}
             for (id,position) in [("moveLeft",SIMD3<Float>(-0.17,0.003,0)),("moveRight",SIMD3<Float>(0.17,0.003,0)),("moveAway",SIMD3<Float>(0,0.003,-0.19)),("moveNear",SIMD3<Float>(0,0.003,0.19)),("moveUp",SIMD3<Float>(0.19,0.003,-0.11)),("moveDown",SIMD3<Float>(0.19,0.003,0.11)),("moveDone",SIMD3<Float>(0,0.003,-0.25))] {
                 if let control=attachments.entity(for:id) {
                     control.position=position;control.scale=SIMD3(repeating:0.5)
@@ -127,7 +127,7 @@ struct SpatialStudio: View {
             model.onRender = { [scene, model] frame, live, _ in scene.render(model:model,frame:frame,live:live) }
         } attachments: {
             Attachment(id:"dockedVideo") {
-                Group {if model.dockedVideo && model.course.hasVideo {VideoReference(embedded:true)} else {Color.clear.frame(width:800,height:650)}}
+                Group {if model.dockedVideo {VideoReference(embedded:true)} else {Color.clear.frame(width:800,height:650)}}
             }
             Attachment(id:"tray") {PartsTray().opacity(model.course.trayLabels.isEmpty ? 0 : 1).allowsHitTesting(!model.course.trayLabels.isEmpty)}
             Attachment(id:"cueLabel") {Text(model.spatialCue?.label ?? "Place a marker in Place").font(.caption).padding(10).background(.black).foregroundStyle(.white).opacity(model.isPaperLesson || model.spatialCue == nil ? 0 : 1).allowsHitTesting(false)}
@@ -164,7 +164,6 @@ struct SpatialStudio: View {
             catch {if !Task.isCancelled && model.avatarEnabled {model.avatarStatus="Could not load the human model. Try toggling it again."}}
         }
         .onChange(of:model.placed) { _,placed in if placed {dismissWindow(id:"home");if model.automaticVideo && model.currentStep.segment != nil {model.showVideo()}} else if model.immersive {openWindow(id:"home")} }
-        .onChange(of:model.course.id) {_,_ in if !model.course.hasVideo {model.dockedVideo=false;dismissWindow(id:"video");model.videoClosed()}}
         .onChange(of:model.trackingIssue) {_,issue in
             if issue != nil {openWindow(id:"home")} else if model.placed {dismissWindow(id:"home")}
         }

@@ -77,6 +77,40 @@ final class StudioModel {
     var videoOwner:UUID?
     var videoHeight:Float=0.30
     var videoDepth:Float = -0.29
+    var videoScale:Float=0.55
+    var referenceVideos:[String:String]=[:]
+    static let turbineVideo="https://www.youtube.com/watch?v=kz5kv0RfeUc"
+    var referenceURL:String {isAuthoring ? course.videoURL : referenceVideos[course.id] ?? (course.hasVideo ? course.videoURL : course.mechanicalModel == .jet ? Self.turbineVideo : "")}
+    var hasReferenceVideo:Bool {YouTubeLink(referenceURL) != nil}
+    var canSyncVideo:Bool {!isAuthoring && referenceVideos[course.id]==nil && course.hasVideo && currentStep.segment != nil}
+    var referenceTitle:String {referenceVideos[course.id] != nil ? "Your YouTube video" : course.hasVideo ? course.attribution : course.mechanicalModel == .jet ? "Safran · How does a jet engine work?" : "Choose a YouTube video"}
+    var youtubeSearchURL:URL {
+        var url=URLComponents(string:"https://www.youtube.com/results")!
+        url.queryItems=[.init(name:"search_query",value:course.title+" explained")];return url.url!
+    }
+    @discardableResult func setReferenceVideo(_ input:String)->Bool {
+        guard !busyRecording,!isAuthoring else{return false}
+        guard let link=YouTubeLink(input) else {error="Enter a valid YouTube video link, such as youtube.com/watch?v=… or youtu.be/…";return false}
+        referenceVideos[course.id]=link.watchURL.absoluteString;saveReferenceVideos();video.failed=false
+        sendVideo(seek:true,play:video.visible,time:Double(link.startSeconds));narrationRevision += 1;return true
+    }
+    func useLessonReference() {
+        guard !busyRecording,!isAuthoring else{return}
+        pauseVideo();referenceVideos.removeValue(forKey:course.id);saveReferenceVideos();video.failed=false
+        if hasReferenceVideo {sendVideo(seek:true,play:video.visible)} else {video.clearPlayback()};narrationRevision += 1
+    }
+    private func saveReferenceVideos() {
+        let url=storage.deletingLastPathComponent().appendingPathComponent("ReferenceVideos.json")
+        do {try FileManager.default.createDirectory(at:url.deletingLastPathComponent(),withIntermediateDirectories:true);try JSONEncoder().encode(referenceVideos).write(to:url,options:.atomic)} catch {self.error="Could not save video choices."}
+    }
+    func setVideoSync(_ enabled:Bool) {
+        guard canSyncVideo,!busyRecording else{return}
+        syncVideo=enabled;sendVideo(seek:enabled,play:video.playing,time:enabled ? nil : video.currentTime)
+    }
+    func toggleReferencePlayback() {guard !busyRecording,hasReferenceVideo else{return};sendVideo(seek:false,play:!video.playing)}
+    func replayReference() {guard !busyRecording else{return};sendVideo(seek:true,play:true)}
+    func failVideo(_ message:String) {let linked=linkedVideo;video.fail(message);if linked {mode = .paused}}
+
     var paperSide: Float = LetterPaper.width
     var paperHeight: Float = LetterPaper.height
     var placementReady = false
@@ -113,6 +147,7 @@ final class StudioModel {
             narrationEnabled=preferences.enabled;repeatNarrationAfterVideo=preferences.repeatAfterVideo;naturalNarration=preferences.naturalVoice
         }
         if let data=try? Data(contentsOf:self.storage.deletingLastPathComponent().appendingPathComponent("VisualPreferences.json")),let colored=try? JSONDecoder().decode(Bool.self,from:data) {coloredModels=colored}
+        if let data=try? Data(contentsOf:self.storage.deletingLastPathComponent().appendingPathComponent("ReferenceVideos.json")),let choices=try? JSONDecoder().decode([String:String].self,from:data) {referenceVideos=choices.filter{YouTubeLink($0.value) != nil}}
         let result = ClipStorage.load(in: self.storage)
         clips = result.clips
         customLessons = LessonStorage.load(in:self.storage.deletingLastPathComponent().appendingPathComponent("GhostHandsLessons"))
@@ -131,11 +166,11 @@ final class StudioModel {
     var stepCount:Int {course.steps.count}
     var lesson: PaperStep {PaperStep.all[currentStep.paperIndex ?? 0]}
     var isPaperLesson:Bool {currentStep.paperIndex != nil}
-    var linkedVideo:Bool {syncVideo && video.visible && !video.failed && !isAuthoring && currentStep.segment != nil && !busyRecording}
+    var linkedVideo:Bool {syncVideo && canSyncVideo && video.visible && !video.failed && !busyRecording}
     var cueKey:String {course.id+"/"+currentStep.id}
     var spatialCue:SpatialCue? {cueOverrides[cueKey] ?? currentStep.cue}
     var instructionToRead:String {NarrationPolicy.text(for:currentStep)}
-    var automaticNarrationAllowed:Bool {NarrationPolicy.allows(automatic:narrationEnabled,hasVideo:video.visible && !video.failed && course.hasVideo,repeatAfterVideo:repeatNarrationAfterVideo,manual:false)}
+    var automaticNarrationAllowed:Bool {NarrationPolicy.allows(automatic:narrationEnabled,hasVideo:video.visible && !video.failed && hasReferenceVideo,repeatAfterVideo:repeatNarrationAfterVideo,manual:false)}
     func saveNarrationPreferences() {
         let preferences=NarrationPreferences(enabled:narrationEnabled,repeatAfterVideo:repeatNarrationAfterVideo,naturalVoice:naturalNarration)
         let url=storage.deletingLastPathComponent().appendingPathComponent("NarrationPreferences.json")
@@ -210,28 +245,36 @@ final class StudioModel {
         if selected == nil,let paper=currentStep.paperIndex {selected=IllustratedMotion.clip(step:paper,side:paperSide)}
         elapsed = currentStep.staticPaper ? progressDuration : 0; previousTick = 0
         mode = immersive && placed && !isAuthoring ? .playing : .paused
-        if isAuthoring || currentStep.segment != nil || video.command?.videoID != YouTubeLink(course.videoURL)?.videoID {
-            sendVideo(seek:true,play:mode == .playing,time:isAuthoring ? (currentStep.segment?.start ?? video.currentTime) : nil)
-        }
+        reconcileReference()
         narrationRevision += 1
     }
     func chooseLesson(_ id:String) {
         guard !busyRecording,!hasUnsaved,lessons.contains(where:{$0.id==id}) else{return}
         pauseVideo();isAuthoring=false;draft=nil;activeLessonID=id;trayContents=[];engineFocus=nil;labFocus=nil;explodedView=false;modelScale=1;modelRotation=0;mechanismEngaged=false;mechanismAngle=0;mechanismBlend=0;loops=[.brake,.pump].contains(course.mechanicalModel);setStep(0);tab = .lessons
     }
+    func reconcileReference() {
+        guard let link=YouTubeLink(referenceURL) else {video.clearPlayback();return}
+        if isAuthoring || (syncVideo && canSyncVideo) || video.command?.videoID != link.videoID {
+            sendVideo(seek:true,play:video.visible && mode == .playing,time:isAuthoring ? (currentStep.segment?.start ?? video.currentTime) : nil)
+        } else if video.command?.end != nil {
+            sendVideo(seek:false,play:video.playing)
+        }
+    }
     func sendVideo(seek:Bool,play:Bool,time:Double?=nil) {
-        guard let link=YouTubeLink(course.videoURL) else{return}
-        video.request(videoID:link.videoID,segment:isAuthoring ? nil : currentStep.segment,time:time,seek:seek,play:play && (isAuthoring || currentStep.segment != nil),rate:speed,loop:loops && !isAuthoring)
+        guard let link=YouTubeLink(referenceURL) else{return}
+        let synchronized=syncVideo && canSyncVideo
+        video.request(videoID:link.videoID,segment:synchronized ? currentStep.segment : nil,time:time ?? (seek && !synchronized ? Double(link.startSeconds) : nil),seek:seek,play:play,rate:synchronized ? speed : 1,loop:synchronized && loops)
     }
     func pauseVideo() {if video.visible {sendVideo(seek:false,play:false)}}
-    func showVideo() {guard course.hasVideo else{return};dockedVideo=true}
-    func videoOpened(owner:UUID?=nil) {videoOwner=owner;video.visible=true;sendVideo(seek:true,play:immersive && placed && !isAuthoring && !busyRecording)}
+    func showVideo() {guard !isAuthoring else{return};if course.mechanicalModel != nil {loops=true};dockedVideo=true}
+    func videoOpened(owner:UUID?=nil) {videoOwner=owner;video.visible=true;video.failed=false;sendVideo(seek:true,play:immersive && placed && !isAuthoring && !busyRecording)}
     func retryVideo() {video.failed=false;video.ready=false;video.playerGeneration += 1;videoOpened(owner:videoOwner)}
     func videoClosed(owner:UUID?=nil) {if let owner,videoOwner != owner {return};videoOwner=nil;let wasLinked=linkedVideo;video.close();if wasLinked {mode = .paused};narrationRevision += 1}
     func changeSpeed(_ value:Double) {speed=min(2,max(0.25,value));if linkedVideo {sendVideo(seek:false,play:video.playing)}}
     func toggleLoop() {loops.toggle();if linkedVideo {sendVideo(seek:false,play:video.playing)}}
     func acceptVideo(serial:Int,id:String,time:Double,duration:Double,state:Int,rate:Double,ended:Bool) {
         guard video.receive(serial:serial,videoID:id,time:time,duration:duration,state:state,rate:rate) else{return}
+        if !linkedVideo && video.playing {video.status="Playing independently · 3D model controls stay separate"}
         guard immersive,placed,interactionActive,linkedVideo,let segment=currentStep.segment else{return}
         elapsed=currentStep.staticPaper ? progressDuration : segment.progress(at:time)*progressDuration
         mode = state==1 ? .playing : .paused
@@ -258,7 +301,7 @@ final class StudioModel {
             activeLessonID=LessonCatalog.boat.id;self.step=LessonCatalog.boat.steps.firstIndex{$0.id=="boat-\(oldStep)"} ?? 0
         } else if let id=clip.lessonID,lessons.contains(where:{$0.id==id}) {activeLessonID=id;self.step=min(clip.lessonStep ?? 0,stepCount-1)}
         showGuides = isPaperLesson || course.mechanicalModel != nil || spatialCue != nil
-        mode = immersive && placed ? .playing : .paused; previousTick = 0; tab = .learn;if currentStep.segment != nil {sendVideo(seek:true,play:mode == .playing)}
+        mode = immersive && placed ? .playing : .paused; previousTick = 0; tab = .learn;reconcileReference()
     }
     func playPause() {
         guard immersive, placed, !busyRecording else { return }
@@ -271,12 +314,12 @@ final class StudioModel {
     func resumeInteraction() { interactionActive=true;previousTick=0;calibration.reset() }
     func replayCurrent() {
         guard immersive,placed,!busyRecording else{return}
-        elapsed=currentStep.staticPaper ? progressDuration : 0;previousTick=0;mode = .playing;if currentStep.segment != nil {sendVideo(seek:true,play:true)}
+        elapsed=currentStep.staticPaper ? progressDuration : 0;previousTick=0;mode = .playing;if linkedVideo {sendVideo(seek:true,play:true)}
     }
     func seek(_ value: Double) {
         guard !busyRecording else { return }
         elapsed = min(max(value, 0), progressDuration); mode = .paused
-        if let segment=currentStep.segment,video.visible {sendVideo(seek:true,play:false,time:segment.start+elapsed/max(progressDuration,0.01)*segment.duration)}
+        if let segment=currentStep.segment,linkedVideo {sendVideo(seek:true,play:false,time:segment.start+elapsed/max(progressDuration,0.01)*segment.duration)}
     }
     func beginRecording(now: Double = CACurrentMediaTime()) {
         guard immersive, placed, workspaceVisible, !busyRecording, capture.ready, !saving, unsaved == nil else { return }

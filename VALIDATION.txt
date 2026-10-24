@@ -1,3 +1,22 @@
+BUILD 12 — OCTOBER 24, 2026
+PASS: 73 core tests and 8 player-controller scenarios. New checks cover universal
+video access, custom-video timestamp isolation, independent controls/errors,
+sync toggling, per-lesson persistence, removal of stale segment bounds, cleared
+audio state on empty references and correct video selection for saved takes.
+PASS: Signed Release device and Debug simulator builds. Strict verification of
+the original binary and ZIP extracted outside iCloud.
+PASS: Final live YouTube turbine probe: reference played, video + model advanced
+together, video paused without stopping model, and model paused without stopping
+video. Final live boat probe: initial20.047s, Next123s, endpoint134s, replay123.181s.
+PASS: Rendered embedded player + turbine simultaneously in simulator.
+PASS: Physical build12 installed, launched and independently version-checked.
+Documents and Library backed up; existing Documents data preserved (binary/JSON
+value comparison in the local installation receipt).
+NOT VERIFIED: Worn-headset comfort at larger video sizes, actual text entry,
+reach and audio perception. The selected video's YouTube embedding policy and
+network can still affect playback. The app has link loading and reference
+choices, not an in-app YouTube search backend; Find videos opens YouTube search.
+
 BUILD 11 — OCTOBER 24, 2026
 PASS: 65 core tests and 8 player-controller scenarios. New checks cover anchor
 corrections/jumps/rotation/NaN, latched recovery, loss during countdown and

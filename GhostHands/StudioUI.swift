@@ -4,7 +4,7 @@ extension Color {
     static let ghostMint = Color.white
     static let ghostLavender = Color.white.opacity(0.7)
 }
-private struct CompactControlsKey:EnvironmentKey {static let defaultValue=false}
+struct CompactControlsKey:EnvironmentKey {static let defaultValue=false}
 extension EnvironmentValues {var compactControls:Bool {get{self[CompactControlsKey.self]}set{self[CompactControlsKey.self]=newValue}}}
 struct SquareButton: ButtonStyle {
     @Environment(\.compactControls) private var compact
@@ -79,7 +79,7 @@ struct HomeView: View {
                     model.previewConsumed=true;model.tab = ProcessInfo.processInfo.arguments.contains("--lessons-preview") ? .lessons : .settings
                     openWindow(id:"panel-preview");dismiss(id:"home");return
                 }
-                if ["--spatial-preview","--avatar-preview","--move-preview","--setup-preview","--sync-preview","--repair-preview","--author-preview","--engine-preview","--tracking-preview","--brake-preview","--pump-preview","--jet-preview","--gear-preview","--settings-preview","--lessons-preview"].contains(where:{ProcessInfo.processInfo.arguments.contains($0)}),!model.previewConsumed {
+                if ["--spatial-preview","--avatar-preview","--move-preview","--setup-preview","--sync-preview","--repair-preview","--author-preview","--engine-preview","--independent-video-preview","--tracking-preview","--brake-preview","--pump-preview","--jet-preview","--gear-preview","--settings-preview","--lessons-preview"].contains(where:{ProcessInfo.processInfo.arguments.contains($0)}),!model.previewConsumed {
                     model.previewConsumed=true;model.automaticVideo=ProcessInfo.processInfo.arguments.contains("--video-preview") || ProcessInfo.processInfo.arguments.contains("--sync-preview")
                     let result=await open(id:"studio")
                     if case .opened=result {
@@ -92,6 +92,7 @@ struct HomeView: View {
                         if ProcessInfo.processInfo.arguments.contains("--engine-preview") {model.chooseLesson(LessonCatalog.engine.id);model.setStep(2);model.seek(3)}
                         if ProcessInfo.processInfo.arguments.contains("--jet-preview") {model.chooseLesson(LessonCatalog.jet.id);model.setStep(4);model.seek(2)}
                         if ProcessInfo.processInfo.arguments.contains("--gear-preview") {model.chooseLesson(LessonCatalog.gearbox.id);model.setStep(1);model.seek(2)}
+                        if ProcessInfo.processInfo.arguments.contains("--independent-video-preview") {model.chooseLesson(LessonCatalog.jet.id);model.loops=true;model.showVideo()}
                         if ProcessInfo.processInfo.arguments.contains("--color-preview") {model.coloredModels=true}
                         if ProcessInfo.processInfo.arguments.contains("--brake-preview") {model.chooseLesson(LessonCatalog.brake.id);model.loops=true}
                         if ProcessInfo.processInfo.arguments.contains("--pump-preview") {model.chooseLesson(LessonCatalog.pump.id);model.loops=true}
@@ -193,12 +194,13 @@ struct PlaybackControls: View {
                         Button {model.changeSpeed(speed)} label:{Label("\(speed.formatted())×",systemImage:model.speed==speed ? "checkmark" : "speedometer")}
                     }
                 } label:{Label("\(model.speed.formatted())×",systemImage:"chevron.down")}.disabled(model.busyRecording)
+                Button("YOUTUBE",systemImage:"play.rectangle") {model.showVideo()}.disabled(model.busyRecording)
                 Menu {
                     Button("Show that again",systemImage:"arrow.counterclockwise") {model.replayCurrent()}.disabled(model.busyRecording)
                     Button(model.loops ? "Turn looping off" : "Loop this action",systemImage:"repeat") {model.toggleLoop()}.disabled(model.busyRecording)
                     Button("Show start") {model.seek(0)}.disabled(model.busyRecording)
                     Button("Show finish") {model.seek(model.progressDuration)}.disabled(model.busyRecording)
-                    if model.course.hasVideo {Button("Open reference video",systemImage:"play.rectangle") {model.showVideo()}}
+                    Button("Open YouTube",systemImage:"play.rectangle") {model.showVideo()}
                     Divider()
                     Button("Home",systemImage:"house") {
                         guard !model.transitioning else{return};model.transitioning=true
@@ -302,7 +304,7 @@ struct PlacementPanel: View {
             Text("Align the workspace").font(.headline)
             Text("Reposition reveals arrows. Move 1 cm or adjust height by 2 mm per tap.").font(.caption).lineLimit(2)
             HStack {Button(model.adjustingPlacement ? "DONE" : "REPOSITION") {if model.adjustingPlacement {model.finishAdjustment()} else {model.beginAdjustment()}};Button("NEW SPOT") {model.beginPlacement()}}
-            if model.course.hasVideo {
+            if model.dockedVideo {
                 Text("VIDEO POSITION").font(.caption.monospaced())
                 HStack {Button("LOWER") {model.videoHeight=max(0.24,model.videoHeight-0.025)};Button("HIGHER") {model.videoHeight=min(0.55,model.videoHeight+0.025)}}
                 HStack {Button("CLOSER") {model.videoDepth=min(-0.18,model.videoDepth+0.025)};Button("FARTHER") {model.videoDepth=max(-0.5,model.videoDepth-0.025)}}
@@ -351,8 +353,8 @@ struct SettingsPanel: View {
                 Slider(value:Binding(get:{Double(model.avatarTableHeight)},set:{model.avatarTableHeight=Float($0)}),in:0.6...1)
                 Toggle("Ghost hands",isOn:Binding(get:{model.showHands},set:{model.showHands=$0}))
                 Toggle("Guide model",isOn:Binding(get:{model.showGuides},set:{model.showGuides=$0}))
-                if model.currentStep.segment != nil {Toggle("Sync with video",isOn:Binding(get:{model.syncVideo},set:{model.syncVideo=$0;if $0 {model.sendVideo(seek:true,play:model.mode == .playing)}}))}
-                if model.course.hasVideo {Button("OPEN TUTORIAL") {model.showVideo()}}
+                if model.canSyncVideo {Toggle("Sync with video",isOn:Binding(get:{model.syncVideo},set:{model.setVideoSync($0)}))}
+                Button("OPEN YOUTUBE") {model.showVideo()}
             }
         }.font(.system(size:14)).toggleStyle(.switch).frame(width:422,height:390,alignment:.topLeading)
     }

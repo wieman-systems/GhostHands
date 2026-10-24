@@ -43,6 +43,10 @@ struct VideoCommand: Codable, Equatable {
         return true
     }
     func fail(_ message:String) {failed=true;ready=false;waiting=false;playing=false;buffering=false;status=message}
+    func clearPlayback() {
+        revision += 1;command=nil;acknowledgedSerial = -1;failed=false;ready=false;playing=false;buffering=false;waiting=false;currentTime=0;duration=0
+        status="Choose a YouTube video to watch alongside the model."
+    }
     func close() {visible=false;ready=false;playing=false;buffering=false;waiting=false;status="Video closed"}
 }
 

@@ -17,7 +17,10 @@ Learn a hands-on skill through spatial demonstrations on Apple Vision Pro. Built
 - Seeks the YouTube tutorial to each action, pauses at the segment end, and replays that segment alongside the spatial guide.
 - Accepts spoken Next, Back, Slow down, Faster, Show that again, Pause, Play, and Read instructions.
 - Bundles 51 natural AI-generated instruction clips for offline playback. Settings → Audio controls automatic reading and repetition after video (off by default). Narration stops when video resumes.
-- Anchors YouTube directly above the paper’s far edge, with height/distance adjustments in Place.
+- Opens YouTube from an always-visible playback button in every lesson, including all 3D labs.
+- Accepts any supported YouTube video URL and remembers the choice per lesson. The jet lab includes Safran’s turbine reference.
+- Keeps independent video and model playback separate, with optional Step Sync for authored tutorials. Opening YouTube in a mechanical lab enables model looping.
+- Anchors YouTube above the workspace, with Standard/Large/Largest sizes and height/distance adjustments in Place.
 - Keeps the right panel at a fixed size with compact tabs, dropdowns and paginated recordings.
 - Explores a jet engine with fan, compressor, combustion, turbine, bypass/core flow and exploded inspection; a gearbox adds meshing gears and defect-finding practice.
 - Includes a 2018 Toyota Corolla cabin-filter lesson with a 3D housing/filter illustration, manual arrows and a numbered parts tray.
@@ -75,7 +78,7 @@ swift test --scratch-path /tmp/GhostHandsTests --disable-sandbox
 node Scripts/player-controller-tests.cjs
 ```
 
-Build 11: 65 core tests and 8 player-controller scenarios passed. All 51 narration files decoded. Device and simulator builds succeeded. New tests cover anchor-jump rejection, tracking loss/recovery, partial-take preservation, placement heading, accidental movement, color persistence, mechanism interaction and continuous pump flow. See `VALIDATION.txt` for installation and rendered UI evidence. Actual headset relocalization behavior, contact height, targeting and color appearance still need user testing.
+Build 12: 73 core tests and 8 player-controller scenarios passed. Device and simulator builds succeeded. New tests verify universal video access, custom-video timing isolation, independent transport, sync toggling, persistent choices and reference reconciliation across lesson/recording changes. Live player and installation results are in `VALIDATION.txt`. Worn-headset reach and audio still require user testing.
 
 ## Data and assets
 
@@ -114,3 +117,11 @@ Use Lessons to choose the new assemblies. Tap the caliper/impeller or use Inspec
 ![Colored disc-brake assembly — simulator](Brake-Build11.png)
 
 ![Colored pump assembly — simulator](Pump-Build11.png)
+
+## YouTube in every lesson (build 12)
+
+Select **YouTube** on the playback panel, or **Settings → Scene → Open YouTube**. The jet lab opens [Safran’s explanation](https://www.youtube.com/watch?v=kz5kv0RfeUc). Other lessons retain their original references or show a video chooser. **Choose Video → Enter a YouTube link** loads a custom reference without modifying the authored lesson. **Find videos on YouTube** opens an external YouTube search when no reference is selected. Choices stay on device in ReferenceVideos.json.
+
+Independent mode has separate Play/Pause Video and Play/Pause Model buttons. Next, Replay, model speed and model scrubbing do not seek or truncate an independent video. A custom video never inherits origami timestamps. Paper/filter lessons still offer Step Sync for their original references; switch it off to watch freely. Closing or failing an independent video leaves the model running. Narration continues to defer while video audio is playing.
+
+The video remains docked behind the workspace; use Size to enlarge it. Position adjustments are available under Place while the panel is open. Opening YouTube enables looping for mechanical labs; the playback More menu can turn looping off. Embedding still depends on the selected creator’s YouTube settings and network access.
