@@ -1,0 +1,21 @@
+GHOSTHANDS BUILD 5 — OCTOBER 24, 2026
+PASS: Signed Release build and strict codesign verification.
+PASS: Simulator build and actual rendered tabletop view inspection.
+PASS: 30 unit tests, zero failures. Core checks cover stable table calibration,
+tracking-loss/reacquisition, pinch dwell, inactive input, selected-take replay,
+local capture/storage, interpolation and legacy recordings. Five added geometry
+regressions cover table clearance, retained rear layer, pocket continuity,
+animated wrap/hull operations, and separate hand contacts.
+
+Adversarial agent reviewed placement, lifecycle and tutorial geometry. Concrete
+issues and corrections are recorded in Adversarial-Review.txt. Device evidence
+and rendered simulator preview accompany this deliverable when available.
+
+NOT VERIFIED BY A WEARER:
+Real tabletop contact alignment, full tutorial completion by a novice, tracking
+comfort and readability. Paper transitions are authored approximations. Ghost
+hands use translucent joints, not Apple's system passthrough hand imagery.
+
+DEVICE UPDATE: installation failed after the headset disconnected. Follow-up
+query also failed connectivity requirements. Build 5 is not confirmed installed
+or launched; last successful query before update reported build 4.

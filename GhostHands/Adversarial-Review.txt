@@ -1,0 +1,12 @@
+BUILD 5 ADVERSARIAL REVIEW
+Fixed: paper flips below table; rear layer disappearing on front-only folds;
+flat-to-pocket jump; static corner-wrap and hull animations; overlapping hand
+contacts. Regression tests cover these failures.
+Also fixed: competing drag/pinch placement; calibration committing while finger
+moves; missing rearm after tracking loss; invisible recovery during reposition;
+background input; replay replacing the current take; inaccurate start diagrams.
+Added: endpoint inspection, hands visibility toggle, larger controls, 2 mm
+contact-height adjustments. Recordings and bundle identity preserved.
+Remaining: schematic paper deformation, approximate wrist/grip orientation,
+unverified real direct touch and novice completion. No claim of physical
+simulation or expert-recorded movements.

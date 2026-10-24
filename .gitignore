@@ -1,0 +1,17 @@
+.DS_Store
+.build/
+DerivedData/
+Builds/
+Installation/
+*.xcuserstate
+xcuserdata/
+*.mobileprovision
+*.p12
+*.p8
+.env*
+GhostHandsRecordings/
+Preview.png
+Preview-Build2.png
+Preview-Build3.png
+Preview-Build4.png
+Home-Build2.png
