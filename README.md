@@ -191,3 +191,17 @@ Settings → Watch now has a six-digit on-panel keypad, Clear and backspace. Ent
 the iPhone code and tap Pair iPhone; no system keyboard is needed. Pair stays
 disabled until six digits are entered and a phone is discovered. Automatic button
 haptics remains paused as documented for build 17.
+
+## Build 19 — pairing recovery (installation pending)
+
+The iPhone now has a persistent, distinct label shown on both devices. Discovery
+excludes simulator relays and deduplicates restarted app instances. Pairing
+attempts have separate sessions and timeouts on both ends; unrelated or retired
+peer callbacks cannot overwrite the current connection. The phone distinguishes
+an unpaired Watch, missing Watch app and closed Watch app.
+
+**Update both the iPhone companion and Vision Pro app together:** build 19 uses
+an isolated v2 discovery service. Both device builds and signed packages pass,
+but neither update was installed because both devices became unavailable to
+Xcode. Watch development pairing/installation also remains pending. Automatic
+left-hand button haptics remains disabled; the explicit Test Watch Tap is retained.

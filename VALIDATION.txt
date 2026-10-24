@@ -1,3 +1,27 @@
+BUILD 19 — OCTOBER 24, 2026
+FIX: Persistent securely archived MCPeerID and unique stable device label;
+v2 Bonjour discovery only accepts physical phone advertisements, with one row
+per installation. The iPhone displays the same label as the Vision Pro picker.
+FIX: State changes only apply to the invited/connected peer. Both sender and
+receiver use fresh sessions per attempt, retire timed-out sessions, and fence
+old callbacks/timers. Receiver resumes advertising after a disconnect.
+FIX: Phone status distinguishes WCSession activation, isPaired,
+isWatchAppInstalled and isReachable. Private local diagnostic snapshot has no
+code/hand data and is refreshed when the relay stops.
+PASS: Final Release device builds for visionOS/iOS/watchOS; strict signatures
+verified before and after extracting both signed ZIPs. Adversarial review led
+to timeout-session retirement and stopped-state diagnostic fixes.
+BLOCKED INSTALLATION: Both phone and Vision Pro became unavailable. Data-backup
+attempts returned CoreDevice 4016; no build19 install or data mutation attempted.
+Previously installed versions remain Vision Pro18 / iPhone16.
+WATCH: No physical Watch appears in devicectl or xcdevice. Existing Watch profile
+was created without this Watch (the inspected earlier profile contained only the
+headset). Watch-specific signing/installation cannot be verified yet. Device Hub
+nearby-device pairing was initiated; user needs Watch Developer Mode/trust.
+NOT VERIFIED: Real-device v2 pairing, Watch install, tactile latency. Automatic
+button pulses remain disabled. Both phone and headset must be updated together.
+Core test logic unchanged; 93-test result belongs to build16, not new network QA.
+
 BUILD 18 — OCTOBER 24, 2026
 FIX: Replaced immersive pairing TextField with a bounded six-digit button keypad,
 Clear and backspace. Native keyboard focus is no longer required. Pair stays

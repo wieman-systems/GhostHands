@@ -1,5 +1,12 @@
 # Optional Apple Watch haptics
 
+**Build 19 pending installation:** Update the phone and headset together. Match
+the stable iPhone label shown beside its code. This release excludes simulator
+relays, isolates pairing attempts, and reports actual Watch installation state.
+The Mac lost both device connections before installation. The Watch itself has
+not yet appeared as a development target.
+
+
 **Build 18:** Use the on-panel digit keypad to enter the iPhone code; the system
 keyboard is no longer needed. Pair enables after six digits and phone discovery.
 

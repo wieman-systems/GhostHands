@@ -22,7 +22,7 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSBonjourServices</key>
 	<array>
-		<string>_gh-haptics._tcp</string>
+		<string>_gh-haptics-v2._tcp</string>
 	</array>
 	<key>NSHandsTrackingUsageDescription</key>
 	<string>GhostHands records your hand joints so you can teach a skill and replay it over a table. Recordings stay on this device.</string>

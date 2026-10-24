@@ -44,13 +44,13 @@ struct WatchHapticsPanel:View {
                     } else {
                         Menu("PAIR IPHONE") {
                             ForEach(Array(link.peers.enumerated()),id:\.element) {index,peer in
-                                Button("\(peer.displayName) \(index+1)") {link.pair(peer)}
+                                Button(peer.displayName) {link.pair(peer)}
                             }
                         }.disabled(link.code.count != 6 || link.peers.isEmpty)
                     }
                     Button("SEARCH AGAIN") {link.start()}
                 }
-                Text("Tap the six digits shown on your iPhone, then Pair iPhone. Keep both companion apps open.").font(.caption2).lineLimit(2)
+                Text("Enter the current iPhone code. Keep its app open.").font(.caption2).lineLimit(2)
             } else if haptics.enabled {
                 Button("TEST WATCH TAP") {WatchHaptics.shared.pulse()}.disabled(!link.watchReady)
                 if let ms=link.latencyMS {Text("Last acknowledgement: \(ms) ms round trip").font(.caption)}
@@ -58,7 +58,7 @@ struct WatchHapticsPanel:View {
             } else {
                 Text("Open GhostHands Haptics on iPhone and Watch, then turn on the connection here. Wear the Watch on your left wrist.").font(.caption)
             }
-            Text("Automatic button feedback is paused. Test Watch Tap checks the connection.").font(.caption2).foregroundStyle(.secondary).lineLimit(2)
+            Text("Automatic button feedback is paused.").font(.caption2).foregroundStyle(.secondary).lineLimit(2)
         }.environment(\.compactControls,true)
         #if targetEnvironment(simulator)
         .task {if ProcessInfo.processInfo.arguments.contains("--watch-keypad-preview") {haptics.setEnabled(true)}}

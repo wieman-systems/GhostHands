@@ -22,7 +22,7 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSBonjourServices</key>
 	<array>
-		<string>_gh-haptics._tcp</string>
+		<string>_gh-haptics-v2._tcp</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Connect to GhostHands on Vision Pro and relay optional button haptics to your paired Watch.</string>
