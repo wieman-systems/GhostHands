@@ -10,7 +10,7 @@ struct GhostHandsApp: App {
             .windowResizability(.contentSize)
         WindowGroup(id: "video") { VideoReference() }
             .windowStyle(.plain)
-            .defaultSize(width:760,height:570)
+            .defaultSize(width:760,height:650)
             .windowResizability(.contentSize)
         ImmersiveSpace(id: "studio") { SpatialStudio().environment(studio) }
             .immersionStyle(selection: .constant(.mixed), in: .mixed)

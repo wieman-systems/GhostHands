@@ -12,19 +12,22 @@ import simd
 struct TableCalibration {
     private(set) var candidate: SIMD3<Float>?
     private(set) var ready = false
+    private(set) var progress: Float = 0
     private var origin: SIMD3<Float>?
     private var stableSince = 0.0
     private var armed = false
     private var pinchedSince: Double?
     var isCommitting: Bool { pinchedSince != nil }
     mutating func reset() { self = Self() }
-    mutating func update(rightTip: SIMD3<Float>?, leftGap: Float?, now: Double) -> Bool {
+    mutating func update(rightTip: SIMD3<Float>?, leftGap: Float?, now: Double, automatic: Bool = false) -> Bool {
         guard let tip=rightTip,tip.isFinite else {reset();return false}
         if origin == nil || simd_distance(origin!,tip)>0.012 {
             origin=tip;candidate=tip;stableSince=now;ready=false;armed=false;pinchedSince=nil
         }
         if pinchedSince == nil,let previous=candidate {candidate=previous*0.8+tip*0.2}
+        progress=min(1,max(0,Float((now-stableSince)/1.8)))
         ready=now-stableSince>=0.35
+        if automatic {return progress>=1}
         guard let gap=leftGap,gap.isFinite else {armed=false;pinchedSince=nil;return false}
         if gap>0.035 {armed=ready;pinchedSince=nil}
         guard ready,armed,gap<0.018 else {pinchedSince=nil;return false}

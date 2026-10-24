@@ -1,0 +1,9 @@
+HumanReplay.usdz and HumanReplay.json
+Source: Microsoft Rocketbox, Male_Adult_01
+https://github.com/microsoft/Microsoft-Rocketbox/tree/master/Assets/Avatars/Adults/Male_Adult_01
+License: MIT. See Rocketbox-LICENSE.txt.
+Downloaded October 24, 2026. Converted with Blender 4.5.9 and OpenUSD 26.8.
+Textures converted to PNG. Skeleton flattened for direct joint retargeting.
+Normalized to 1.75 meters tall. This is a textured game character, not a scanned
+replica of the wearer. Recorded hand positions are rotated 180 degrees around
+the table center for a face-to-face mirrored replay. Arm bends are inferred.

@@ -14,24 +14,27 @@ struct VideoIntro: View {
 }
 
 struct VideoReference: View {
-    @Environment(\.openWindow) private var openWindow
-    @State private var input = ""
-    @State private var link: YouTubeLink?
-    @State private var message = "Paste a tutorial link. Nothing loads until you choose Load."
+    @Environment(\.dismissWindow) private var dismissWindow
+    @State private var customLink = false
+    @State private var input = "https://www.youtube.com/watch?v=vNba3jbBSOw"
+    @State private var link: YouTubeLink? = YouTubeLink("https://www.youtube.com/watch?v=vNba3jbBSOw")
+    @State private var message = "EzOrigami · How to Make a Paper Boat. Tap Play to watch the rectangular-paper boat tutorial."
     var body: some View {
         VStack(alignment:.leading,spacing:16) {
             HStack {
-                Label("YouTube reference",systemImage:"play.rectangle.fill").font(.title2.bold())
+                Label("Paper boat / EzOrigami",systemImage:"play.rectangle.fill").font(.title2.bold())
                 Spacer()
-                Button("Show studio",systemImage:"house") { openWindow(id:"home") }
+                Button("CLOSE VIDEO",systemImage:"xmark") { dismissWindow(id:"video") }
             }
-            HStack {
+            DisclosureGroup("Use a different tutorial link",isExpanded:$customLink) {
+              HStack {
                 TextField("https://www.youtube.com/watch?v=…",text:$input).textFieldStyle(.plain).padding(10).overlay(Rectangle().stroke(.white.opacity(0.3)))
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                 Button("Load") {
                     guard let parsed = YouTubeLink(input) else { message = "Enter a valid YouTube video link (watch, share, Shorts, or live)."; return }
                     link = parsed; message = "Use the player to pause, scrub, or change speed. Some videos do not allow embedding."
                 }.buttonStyle(SquareButton(selected:true)).tint(.ghostMint).foregroundStyle(.black)
+            }
             }
             Group {
                 if let link { YouTubePlayer(link:link,message:$message).id(link.embedURL) }
@@ -45,17 +48,15 @@ struct VideoReference: View {
             }.frame(height:360).clipShape(Rectangle())
             Text(message).font(.caption).foregroundStyle(.secondary)
             HStack {
-                Text("Video reference only · spatial hands come from your recordings.").font(.caption)
-                Spacer()
                 if let link { Link("Open on YouTube",destination:link.watchURL).font(.caption) }
             }
-        }.padding(24).frame(width:760,height:570).background(.black).foregroundStyle(.white).buttonStyle(SquareButton()).tint(.white)
+        }.padding(24).frame(width:760,height:customLink ? 730 : 650).background(.black).foregroundStyle(.white).buttonStyle(SquareButton()).tint(.white)
         .task {
             #if targetEnvironment(simulator)
             if ProcessInfo.processInfo.arguments.contains("--video-preview") {
-                input = "https://www.youtube.com/watch?v=M7lc1UVf-VE"
+                input = "https://www.youtube.com/watch?v=vNba3jbBSOw"
                 link = YouTubeLink(input)
-                message = "Simulator test · official YouTube IFrame API example. Tap the player to play."
+                message = "EzOrigami · Paper boat tutorial. Tap Play to begin."
             }
             #endif
         }

@@ -14,7 +14,9 @@ final class StudioScene {
     let root = Entity()
     let guides = Entity()
     let panels = Entity()
+    let moveControls = Entity()
     let paper = PaperVisual()
+    let human = HumanReplay()
 
     func loadHands() async throws {
         try await ghostLeft.load(side:"left")
@@ -24,20 +26,23 @@ final class StudioScene {
     let ghostRight = HologramHand()
     var guideKey = ""
     init() {
-        root.addChild(guides)
-        root.addChild(paper.root)
+        root.addChild(guides);root.addChild(moveControls)
+        root.addChild(paper.root);root.addChild(human.root)
         root.addChild(ghostLeft.root); root.addChild(ghostRight.root)
 
     }
     func render(model: StudioModel, frame: MotionFrame?, live: MotionFrame) {
         root.transform = Transform(matrix: model.workspace)
-        paper.update(step:model.lesson,seconds:model.elapsed,width:model.paperSide,visible:model.placed && model.showGuides && model.selected?.isIllustration == true)
-        ghostLeft.update(model.placed && model.showHands ? frame?.left : nil); ghostRight.update(model.placed && model.showHands ? frame?.right : nil)
-        guides.isEnabled = model.showGuides || !model.placed
-        let key = "\(model.step)-\(model.paperSide)-\(model.paperHeight)-\(model.placed)-\(model.placementReady)"
-        if guideKey != key { guideKey = key; drawGuide(step:model.lesson,width:model.placed ? model.paperSide : LetterPaper.width,height:model.placed ? model.paperHeight : LetterPaper.height,preview:!model.placed,ready:model.placementReady) }
+        let avatarFrame=model.busyRecording ? MotionFrame(time:live.time,left:live.left?.transformed(by:simd_inverse(model.workspace)),right:live.right?.transformed(by:simd_inverse(model.workspace))) : frame
+        human.update(frame:avatarFrame,enabled:model.avatarEnabled && model.placed && (model.busyRecording || model.selected?.isIllustration == false),tableHeight:model.avatarTableHeight)
+        moveControls.isEnabled=model.placed && model.adjustingPlacement
+        paper.update(step:model.lesson,seconds:model.elapsed,width:model.paperSide,visible:model.placed && !model.adjustingPlacement && model.showGuides && model.selected?.isIllustration == true)
+        ghostLeft.update(model.placed && !model.adjustingPlacement && model.showHands && !model.avatarEnabled ? frame?.left : nil); ghostRight.update(model.placed && !model.adjustingPlacement && model.showHands && !model.avatarEnabled ? frame?.right : nil)
+        guides.isEnabled = model.showGuides || !model.placed || model.adjustingPlacement
+        let key = "\(model.step)-\(model.paperSide)-\(model.paperHeight)-\(model.placed)-\(model.placementReady)-\(model.adjustingPlacement)"
+        if guideKey != key { guideKey = key; drawGuide(step:model.lesson,width:model.placed ? model.paperSide : LetterPaper.width,height:model.placed ? model.paperHeight : LetterPaper.height,preview:!model.placed || model.adjustingPlacement,ready:model.placementReady || model.placed) }
         root.isEnabled = model.placed || model.placementReady
-        panels.isEnabled = model.placed
+        panels.isEnabled = model.placed && !model.adjustingPlacement
         panels.transform = Transform(matrix:model.workspace)
     }
     private func line(_ a: SIMD3<Float>, _ b: SIMD3<Float>, color: UIColor, radius: Float = 0.0012) {
@@ -91,12 +96,25 @@ struct SpatialStudio: View {
                     panel.orientation=simd_quatf(angle:-Float.pi/2,axis:[1,0,0]);scene.panels.addChild(panel)
                 }
             }
+            for (id,position) in [("moveLeft",SIMD3<Float>(-0.17,0.003,0)),("moveRight",SIMD3<Float>(0.17,0.003,0)),("moveAway",SIMD3<Float>(0,0.003,-0.19)),("moveNear",SIMD3<Float>(0,0.003,0.19)),("moveUp",SIMD3<Float>(0.19,0.003,-0.11)),("moveDown",SIMD3<Float>(0.19,0.003,0.11)),("moveDone",SIMD3<Float>(0,0.003,-0.25))] {
+                if let control=attachments.entity(for:id) {
+                    control.position=position;control.scale=SIMD3(repeating:0.5)
+                    control.orientation=simd_quatf(angle:-Float.pi/2,axis:[1,0,0]);scene.moveControls.addChild(control)
+                }
+            }
             do { try await scene.loadHands() } catch { model.error="Could not load the hand holograms: \(error.localizedDescription)" }
             model.onRender = { [scene, model] frame, live, _ in scene.render(model:model,frame:frame,live:live) }
         } attachments: {
             Attachment(id:"lesson") { LessonPanel() }
             Attachment(id:"transport") { PlaybackControls() }
             Attachment(id:"tools") { SpatialControls() }
+            Attachment(id:"moveLeft") {PaperMoveControl(label:"← LEFT",delta:[-0.01,0,0])}
+            Attachment(id:"moveRight") {PaperMoveControl(label:"RIGHT →",delta:[0.01,0,0])}
+            Attachment(id:"moveAway") {PaperMoveControl(label:"↑ AWAY",delta:[0,0,-0.01])}
+            Attachment(id:"moveNear") {PaperMoveControl(label:"↓ CLOSER",delta:[0,0,0.01])}
+            Attachment(id:"moveUp") {PaperMoveControl(label:"+ HEIGHT",delta:[0,0.002,0])}
+            Attachment(id:"moveDown") {PaperMoveControl(label:"− HEIGHT",delta:[0,-0.002,0])}
+            Attachment(id:"moveDone") {PaperMoveFinish()}
         }
         .task {
             await model.entered()
@@ -105,7 +123,13 @@ struct SpatialStudio: View {
                 try? await Task.sleep(for:.milliseconds(16))
             }
         }
-        .onChange(of:model.placed) { _,placed in if placed {dismissWindow(id:"home")} else if model.immersive {openWindow(id:"home")} }
+        .task(id:model.avatarEnabled) {
+            guard model.avatarEnabled else {model.avatarStatus="Off";return}
+            model.avatarStatus="Loading human model…"
+            do {try await scene.human.load();if model.avatarEnabled {model.avatarStatus="Ready · record both hands for mirrored replay"}}
+            catch {if !Task.isCancelled && model.avatarEnabled {model.avatarStatus="Could not load the human model. Try toggling it again."}}
+        }
+        .onChange(of:model.placed) { _,placed in if placed {dismissWindow(id:"home");if model.automaticVideo {openWindow(id:"video")}} else if model.immersive {openWindow(id:"home")} }
         .onDisappear { model.leftStudio() }
         .onChange(of:phase) { _,phase in if phase != .active { model.suspend() } else { model.resumeInteraction() } }
     }

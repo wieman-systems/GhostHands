@@ -3,7 +3,7 @@ import Observation
 import QuartzCore
 import simd
 
-enum StudioTab: String, CaseIterable { case learn = "Learn", record = "Record", library = "Library", placement = "Place", video = "Video" }
+enum StudioTab: String, CaseIterable { case settings = "Settings", learn = "Learn", record = "Record", library = "Library", placement = "Place", video = "Video" }
 enum Transport { case idle, countdown, recording, playing, paused }
 
 @MainActor @Observable
@@ -23,6 +23,12 @@ final class StudioModel {
     var loops = false
     var showGuides = true
     var showHands = true
+    var adjustingPlacement = false
+    var placementProgress: Float = 0
+    var avatarEnabled = false
+    var avatarStatus = "Off"
+    var avatarTableHeight: Float = 0.8
+    var automaticVideo = true
     var paperSide: Float = LetterPaper.width
     var paperHeight: Float = LetterPaper.height
     var placementReady = false
@@ -36,6 +42,8 @@ final class StudioModel {
     var savedMessage = ""
     var position = SIMD3<Float>(0, 0, -0.45)
     var fingerPlacement = false
+    private var approachOrigin: SIMD3<Float>?
+    private var approachedTable = false
     private var calibration = TableCalibration()
     var interactionActive = true
     var yaw: Float = 0
@@ -68,9 +76,9 @@ final class StudioModel {
     func entered() async {
         immersive = true; interactionActive = true; previousTick = 0; placed = false
         status = "Use Place to align the outline with your paper."
+        beginPlacement()
         await capture.start()
         guard !Task.isCancelled, immersive else { return }
-        beginPlacement()
     }
     func leftStudio() {
         if mode == .recording { finishRecording() }
@@ -85,10 +93,19 @@ final class StudioModel {
     func beginPlacement() {
         guard !busyRecording else { return }
         mode = .paused; placed = false; placementReady = false
-        fingerPlacement = true; calibration.reset(); placementReady = false
+        fingerPlacement = false; calibration.reset(); placementReady = false; placementProgress=0;adjustingPlacement=false
         placed = false; tab = .placement
         placementHint = "Rest your right index on the paper center and hold it still."
         status = "Rest your right index on the paper center. Open your left hand, then pinch left to lock the table."
+    }
+    func startFingerPlacement() {
+        guard immersive,!placed else{return}
+        calibration.reset();fingerPlacement=true;placementProgress=0;approachOrigin=nil;approachedTable=false
+        placementHint="Rest your RIGHT index fingertip in the center of the clear spot. Hold still for two seconds."
+    }
+    func beginAdjustment() {
+        guard placed,!busyRecording else{return}
+        mode = .paused;adjustingPlacement=true
     }
     func move(_ delta: SIMD3<Float>) {
         guard !busyRecording else { return }
@@ -185,7 +202,12 @@ final class StudioModel {
                 guard let thumb=live.left?.joints[4],let index=live.left?.joints[9] else{return nil}
                 return simd_distance(thumb,index)
             }()
-            let commit=calibration.update(rightTip:live.right?.joints[9],leftGap:gap,now:now)
+            if !approachedTable,let tip=live.right?.joints[9] {
+                if approachOrigin == nil {approachOrigin=tip}
+                if let thumb=live.right?.joints[4],simd_distance(thumb,tip)>0.035,simd_distance(tip,approachOrigin!)>0.05 {approachedTable=true;calibration.reset()}
+            }
+            let commit=calibration.update(rightTip:approachedTable ? live.right?.joints[9] : nil,leftGap:gap,now:now,automatic:true)
+            placementProgress=calibration.progress
             placementReady=calibration.ready
             if let tip=calibration.candidate {
                 position=tip-SIMD3<Float>(0,0.008,0)
@@ -193,8 +215,8 @@ final class StudioModel {
                     let direction=SIMD3<Float>(position.x-head.columns.3.x,0,position.z-head.columns.3.z)
                     if simd_length(direction)>0.1 {yaw=atan2(-direction.x,-direction.z)}
                 }
-                placementHint=placementReady ? "Keep right finger still. Open left thumb/index, then pinch and hold briefly." : "Hold your right fingertip still against the paper center."
-            } else {placementHint="Right index not visible. Keep your hand in view."}
+                placementHint=placementReady ? "Keep your right fingertip touching the table. Placing…" : "Touch the table with your right index and hold it still."
+            } else {placementHint=live.right == nil ? "Right index not visible. Keep your hand in view." : "Open your right hand. Lift your index, then move it down to touch the table center."}
             if commit {confirmPlacement()}
         }
         let count = (live.left == nil ? 0 : 1) + (live.right == nil ? 0 : 1)

@@ -8,7 +8,7 @@ struct SquareButton: ButtonStyle {
     var selected=false
     @Environment(\.isEnabled) private var enabled
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(.system(size:15,weight:.medium))
+        configuration.label.frame(maxWidth:.infinity,alignment:.center).multilineTextAlignment(.center).font(.system(size:15,weight:.medium))
             .padding(.horizontal,14).padding(.vertical,11).frame(minHeight:52)
             .foregroundStyle(selected ? .black : .white)
             .background(selected ? Color.white : Color.white.opacity(configuration.isPressed ? 0.24 : 0.06))
@@ -36,48 +36,59 @@ struct HomeView: View {
     @Environment(\.dismissImmersiveSpace) private var dismissSpace
     @Environment(\.dismissWindow) private var dismiss
     var body: some View {
-        HStack(spacing:0) {
-            VStack(alignment:.leading,spacing:24) {
-                Text("GHOSTHANDS").font(.system(size:14,weight:.bold,design:.monospaced)).tracking(6)
-                Spacer()
-                Text(model.immersive ? "Set your\ntable." : "Learn it.\nMake it.\nPass it on.").font(.system(size:model.immersive ? 42 : 56,weight:.medium)).lineSpacing(-5)
-                Text("A skill you can see from every angle.").font(.title3).foregroundStyle(.secondary)
-                Button { enter() } label: { HStack { Text(model.transitioning ? "OPENING…" : "ENTER WORKSPACE"); Spacer(); Image(systemName:"arrow.up.right") } }
-                    .buttonStyle(SquareButton(selected:true)).disabled(model.transitioning || model.immersive)
-                if model.immersive && !model.placed {
-                    Text(model.placementHint).font(.headline).fixedSize(horizontal:false,vertical:true)
+        VStack(spacing:22) {
+            Text("GHOSTHANDS / PAPER BOAT").font(.system(size:14,weight:.bold,design:.monospaced)).tracking(4)
+            Text(model.immersive ? "Make room to make something." : "One sheet. One boat.").font(.system(size:38,weight:.medium))
+            HStack(alignment:.top,spacing:24) {
+                setupCard("01", "Clear your table", "Find a large, clear, open spot. Leave about an arm’s width for the paper and controls.",icon:"rectangle.dashed")
+                setupCard("02", "Touch the center", "Lift your right index, then rest its fingertip on the table in the center of that space.",icon:"hand.point.up.left")
+                setupCard("03", "Hold still", "Keep it there for two seconds. The paper and menus will appear around that point.",icon:"timer")
+            }
+            if model.immersive && !model.placed {
+                if model.fingerPlacement {
+                    Text(model.placementHint).font(.headline).multilineTextAlignment(.center)
+                    ProgressView(value:Double(model.placementProgress)).tint(.white).frame(width:400)
                     Text(model.capture.status).font(.caption).foregroundStyle(.secondary)
-                    Button("CANCEL SETUP") {Task {await dismissSpace()}}.buttonStyle(SquareButton())
+                } else {
+                    Button("I HAVE A CLEAR SPOT") {model.startFingerPlacement()}.buttonStyle(SquareButton(selected:true)).frame(width:360)
                 }
-                Text("US LETTER / 8½ × 11 IN / NO CUTTING").font(.system(size:11,design:.monospaced)).foregroundStyle(.secondary)
-                Spacer()
-                Text("SASEHACKS 2026  ·  SKILLS FOR EVERYONE").font(.system(size:10,design:.monospaced)).foregroundStyle(.secondary)
-            }.padding(40).frame(width:470)
-            Rectangle().fill(.white.opacity(0.25)).frame(width:1)
-            VStack(alignment:.leading,spacing:20) {
-                HStack { Text("01 / PAPER BOAT").font(.system(size:13,design:.monospaced)).tracking(2); Spacer(); Text("\(PaperStep.all.count) STEPS").font(.caption.monospaced()) }
-                PaperDiagram(step:PaperStep.all.last!).frame(height:245)
-                Text("From a flat sheet\nto a three-dimensional boat.").font(.title.bold())
-                Text("Touch the paper center with your right index, then pinch left. Watch one action at a time, with animated paper and soft joint hands.").font(.body).foregroundStyle(.secondary)
-                HStack { Label("\(model.clips.count) saved takes",systemImage:"square.stack"); Spacer(); Text("ON DEVICE").font(.caption.monospaced()) }.font(.caption)
-            }.padding(36)
-        }.frame(width:960,height:640).background(.black).foregroundStyle(.white)
+                Button("CANCEL SETUP") {Task {await dismissSpace()}}.buttonStyle(SquareButton()).frame(width:240)
+            } else {
+                Button(model.transitioning ? "OPENING…" : "MAKE THE PAPER BOAT") {enter()}.buttonStyle(SquareButton(selected:true)).frame(width:360).disabled(model.transitioning || model.immersive)
+                Text("US LETTER / 8½ × 11 IN / NO CUTTING").font(.caption.monospaced()).foregroundStyle(.secondary)
+            }
+        }.padding(36).frame(width:960,height:620).background(.black).foregroundStyle(.white)
             .overlay(Rectangle().stroke(.white.opacity(0.35),lineWidth:1)).preferredColorScheme(.dark)
             .alert("GhostHands",isPresented:Binding(get:{model.error != nil},set:{if !$0 {model.error=nil}})) { Button("OK") { model.error=nil } } message: { Text(model.error ?? "") }
             .task {
                 #if targetEnvironment(simulator)
-                if ProcessInfo.processInfo.arguments.contains("--spatial-preview"),!model.previewConsumed {
-                    model.previewConsumed=true
+                if ["--spatial-preview","--avatar-preview","--move-preview","--setup-preview"].contains(where:{ProcessInfo.processInfo.arguments.contains($0)}),!model.previewConsumed {
+                    model.previewConsumed=true;model.automaticVideo=ProcessInfo.processInfo.arguments.contains("--video-preview")
                     let result=await open(id:"studio")
                     if case .opened=result {
+                        if ProcessInfo.processInfo.arguments.contains("--setup-preview") {return}
                         try? await Task.sleep(for:.milliseconds(700))
                         model.fingerPlacement=false; model.position=[0,1.25,-0.85]; model.placementReady=true; model.placed=true
                         model.load(IllustratedMotion.clip(step:10,side:LetterPaper.width)); model.seek(3.0)
+                        if ProcessInfo.processInfo.arguments.contains("--avatar-preview") {
+                            var fixture=IllustratedMotion.clip(step:2,side:LetterPaper.width)
+                            fixture.isIllustration=false;fixture.title="Simulator hand fixture"
+                            model.load(fixture);model.seek(3);model.avatarEnabled=true;model.avatarTableHeight=0.8;model.tab = .settings
+                        }
+                        if ProcessInfo.processInfo.arguments.contains("--move-preview") {model.beginAdjustment()}
                         dismiss(id:"home")
                     }
                 }
                 #endif
             }
+    }
+    private func setupCard(_ number:String,_ title:String,_ text:String,icon:String)->some View {
+        VStack(spacing:16) {
+            Text(number).font(.caption.monospaced()).foregroundStyle(.secondary)
+            Image(systemName:icon).font(.system(size:38))
+            Text(title).font(.title3.bold())
+            Text(text).font(.body).multilineTextAlignment(.center).fixedSize(horizontal:false,vertical:true)
+        }.frame(maxWidth:.infinity).padding(18).frame(height:230).overlay(Rectangle().stroke(.white.opacity(0.3)))
     }
     private func enter() {
         guard !model.transitioning else {return}; model.transitioning=true
@@ -159,7 +170,7 @@ struct SpatialControls: View {
     var body: some View {
         DeskCard(title:"02 / CREATE") {
             HStack(spacing:5) {
-                ForEach([StudioTab.record,.library,.placement,.video],id:\.self) { tab in
+                ForEach([StudioTab.record,.library,.placement,.settings],id:\.self) { tab in
                     Button(tab.rawValue) {model.tab=tab}.buttonStyle(SquareButton(selected:model.tab==tab || (tab == .record && model.tab == .learn)))
                 }
             }.disabled(model.busyRecording)
@@ -170,6 +181,7 @@ struct SpatialControls: View {
                     case .library: LibraryPanel()
                     case .placement: PlacementPanel()
                     case .video: VideoIntro()
+                    case .settings: SettingsPanel()
                     }
                 }.frame(maxWidth:.infinity,alignment:.leading)
             }.frame(height:310)
@@ -217,21 +229,49 @@ struct LibraryPanel: View {
 struct PlacementPanel: View {
     @Environment(StudioModel.self) private var model
     var body: some View {
-        VStack(alignment:.leading,spacing:14) {
-            Text(model.placed ? "Paper locked in." : "Touch the paper center.").font(.title2.bold())
-            Text("US LETTER / 8½ × 11 IN").font(.caption.monospaced())
-            Text("Rest your right index fingertip on the paper center. Open your left hand, then pinch left to lock the whole table. Keep your right fingertip still until it locks.").fixedSize(horizontal:false,vertical:true)
-            if model.placed {Button("REPOSITION PAPER") {model.beginPlacement()}}
-            else {Button("START LESSON HERE") {model.confirmPlacement()}.buttonStyle(SquareButton(selected:true)).disabled(!model.immersive)}
-            Text("FINE ADJUSTMENT / 1 CM").font(.caption.monospaced())
-            HStack {Button("←") {model.move([-0.01,0,0])};Button("→") {model.move([0.01,0,0])};Button("DOWN") {model.move([0,-0.01,0])};Button("UP") {model.move([0,0.01,0])}}
-            HStack {Button("AWAY") {model.move([0,0,-0.01])};Button("CLOSER") {model.move([0,0,0.01])}}
-            HStack {Button("↶ 5°") {model.yaw -= .pi/36};Button("↷ 5°") {model.yaw += .pi/36}}
-            Text("CONTACT HEIGHT / 2 MM").font(.caption.monospaced())
-            HStack {Button("LOWER 2 MM") {model.move([0,-0.002,0])};Button("RAISE 2 MM") {model.move([0,0.002,0])}}
-            Button(model.showHands ? "HANDS ON" : "HANDS OFF") {model.showHands.toggle()}
-            Button(model.showGuides ? "PAPER MODEL ON" : "PAPER MODEL OFF") {model.showGuides.toggle()}
+        VStack(spacing:16) {
+            Text("Fit your workspace").font(.title2.bold())
+            Text("Tap Reposition to reveal arrows around the paper. Each tap moves it 1 cm; height arrows move it 2 mm.").multilineTextAlignment(.center)
+            Button(model.adjustingPlacement ? "DONE MOVING" : "REPOSITION") {
+                if model.adjustingPlacement {model.adjustingPlacement=false} else {model.beginAdjustment()}
+            }.buttonStyle(SquareButton(selected:true))
+            Button("CHOOSE A NEW TABLE SPOT") {model.beginPlacement()}
+            Text("The paper, menus, and human replay move together.").font(.caption).foregroundStyle(.secondary)
         }.disabled(model.busyRecording)
+    }
+}
+struct SettingsPanel: View {
+    @Environment(StudioModel.self) private var model
+    @Environment(\.openWindow) private var openWindow
+    var body: some View {
+        VStack(spacing:12) {
+            Text("Your boat workspace").font(.title3.bold())
+            Button(model.avatarEnabled ? "HUMAN REPLAY / ON" : "HUMAN REPLAY / OFF") {model.avatarEnabled.toggle()}.buttonStyle(SquareButton(selected:model.avatarEnabled))
+            Text(model.avatarStatus).font(.caption).foregroundStyle(.secondary)
+            Text("Life-size mirrored replay across the table. Turn on, record BOTH hands, then replay. Arms/body are reconstructed; tracking gaps hide the person.").font(.caption).multilineTextAlignment(.center)
+            if model.avatarEnabled {
+                Text("TABLE HEIGHT / \(Int(model.avatarTableHeight*100)) CM").font(.caption.monospaced())
+                Slider(value:Binding(get:{Double(model.avatarTableHeight)},set:{model.avatarTableHeight=Float($0)}),in:0.6...1.0)
+            }
+            Button(model.showHands ? "GHOST HANDS / ON" : "GHOST HANDS / OFF") {model.showHands.toggle()}
+            Button(model.showGuides ? "PAPER MODEL / ON" : "PAPER MODEL / OFF") {model.showGuides.toggle()}
+            Button("OPEN BOAT VIDEO") {openWindow(id:"video")}
+        }
+    }
+}
+struct PaperMoveControl: View {
+    @Environment(StudioModel.self) private var model
+    let label:String
+    let delta:SIMD3<Float>
+    var body:some View {
+        Button(label) {model.move(delta)}.buttonStyle(SquareButton(selected:true)).frame(width:95,height:65)
+    }
+}
+struct PaperMoveFinish: View {
+    @Environment(StudioModel.self) private var model
+    var body:some View {
+        HStack {Button("↶") {model.yaw -= .pi/36};Button("DONE") {model.adjustingPlacement=false};Button("↷") {model.yaw += .pi/36}}
+            .buttonStyle(SquareButton()).padding(10).frame(width:270).background(.black)
     }
 }
 struct PaperFinishDiagram: View {

@@ -11,22 +11,27 @@ final class PlacementTests: XCTestCase {
         let model=StudioModel(storage:FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
         await model.entered()
         XCTAssertFalse(model.placed);XCTAssertFalse(model.placementReady)
+        XCTAssertFalse(model.fingerPlacement)
+        model.startFingerPlacement()
         var right=hand(gap:0.05);right.joints[9]=[0.2,0.7,-0.4]
         func feed(_ time:Double,_ gap:Float) {
             model.capture.right=TimedHand(time:time,pose:right)
             model.capture.left=TimedHand(time:time,pose:hand(gap:gap))
             model.tick(now:time)
         }
+        feed(0.8,0.05)
+        right.joints[9]=[0.2,0.64,-0.4]
         feed(1,0.05)
         XCTAssertFalse(model.placementReady);XCTAssertFalse(model.placed)
         feed(1.4,0.05)
         XCTAssertTrue(model.placementReady)
-        XCTAssertEqual(model.position.y,0.692,accuracy:0.0001)
+        XCTAssertEqual(model.position.y,0.632,accuracy:0.0001)
         feed(1.45,0.01);XCTAssertFalse(model.placed)
-        feed(1.61,0.01)
+        feed(1.61,0.01);XCTAssertFalse(model.placed)
+        feed(2.81,0.05)
         XCTAssertTrue(model.placed);XCTAssertEqual(model.mode,.playing)
         let locked=model.position
-        right.joints[9]=[0,1.4,0];feed(1.7,0.01)
+        right.joints[9]=[0,1.4,0];feed(2.9,0.01)
         XCTAssertEqual(model.position,locked)
         model.leftStudio()
     }
@@ -90,6 +95,23 @@ final class PlacementTests: XCTestCase {
         model.capture.left=TimedHand(time:10,pose:hand(gap:0.01))
         model.tick(now:10)
         XCTAssertFalse(model.placed);XCTAssertFalse(model.placementReady)
+    }
+    func testAutomaticPlacementNeedsStableFingerAndResetsOnLoss() {
+        var c=TableCalibration()
+        XCTAssertFalse(c.update(rightTip:[0,0.8,0],leftGap:nil,now:0,automatic:true))
+        XCTAssertFalse(c.update(rightTip:[0,0.8,0],leftGap:nil,now:1.7,automatic:true))
+        XCTAssertFalse(c.update(rightTip:nil,leftGap:nil,now:1.75,automatic:true))
+        XCTAssertEqual(c.progress,0)
+        XCTAssertFalse(c.update(rightTip:[0,0.8,0],leftGap:nil,now:2,automatic:true))
+        XCTAssertTrue(c.update(rightTip:[0,0.8,0],leftGap:nil,now:3.81,automatic:true))
+    }
+    @MainActor func testAdjustmentMovesAllWorkspaceAxesAndPausesPlayback() {
+        let m=StudioModel(storage:FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        m.immersive=true;m.placed=true;m.setStep(2);m.beginAdjustment()
+        XCTAssertTrue(m.adjustingPlacement);XCTAssertEqual(m.mode,.paused)
+        m.position = .zero;m.yaw = .pi/2;m.move([0,0.002,-0.01])
+        XCTAssertEqual(m.position.x,-0.01,accuracy:0.00001);XCTAssertEqual(m.position.y,0.002,accuracy:0.00001)
+        m.beginPlacement();XCTAssertFalse(m.adjustingPlacement);XCTAssertFalse(m.fingerPlacement)
     }
     func testLegacySquareClipRemainsDecodable() throws {
         let original=MotionClip(title:"Old take",paperSide:0.20,frames:[.init(time:0,left:hand(gap:0.04),right:nil)])
