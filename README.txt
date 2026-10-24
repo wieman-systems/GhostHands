@@ -1,5 +1,7 @@
-GHOSTHANDS BUILD 12
-YouTube is available in every lesson from the playback panel. Choose Video loads
-any YouTube video link. Independent video/model controls let both play together.
-The jet lab includes a Safran reference. Step Sync remains optional for the
-original timed lessons. Size enlarges the docked panel. See README.md.
+GHOSTHANDS BUILD 13
+Open YouTube from playback More > Open YouTube.
+The floating video uses one centered row: Play/Pause, Replay, More, Close.
+Video choices, Step Sync and Video Size are in More.
+Animation no longer revalidates the catalog every frame; synced hands advance
+between video callbacks and UI timers update separately from motion.
+See README.md and VALIDATION.txt for evidence and remaining headset checks.

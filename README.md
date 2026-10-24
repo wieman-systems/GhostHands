@@ -78,7 +78,7 @@ swift test --scratch-path /tmp/GhostHandsTests --disable-sandbox
 node Scripts/player-controller-tests.cjs
 ```
 
-Build 12: 73 core tests and 8 player-controller scenarios passed. Device and simulator builds succeeded. New tests verify universal video access, custom-video timing isolation, independent transport, sync toggling, persistent choices and reference reconciliation across lesson/recording changes. Live player and installation results are in `VALIDATION.txt`. Worn-headset reach and audio still require user testing.
+Build 13: 79 core tests and 8 player-controller scenarios passed. Device and simulator builds succeeded. New tests verify universal video access, custom-video timing isolation, independent transport, sync toggling, persistent choices and reference reconciliation across lesson/recording changes. Live player and installation results are in `VALIDATION.txt`. Worn-headset reach and audio still require user testing.
 
 ## Data and assets
 
@@ -118,10 +118,20 @@ Use Lessons to choose the new assemblies. Tap the caliper/impeller or use Inspec
 
 ![Colored pump assembly — simulator](Pump-Build11.png)
 
-## YouTube in every lesson (build 12)
+## YouTube in every lesson
 
-Select **YouTube** on the playback panel, or **Settings → Scene → Open YouTube**. The jet lab opens [Safran’s explanation](https://www.youtube.com/watch?v=kz5kv0RfeUc). Other lessons retain their original references or show a video chooser. **Choose Video → Enter a YouTube link** loads a custom reference without modifying the authored lesson. **Find videos on YouTube** opens an external YouTube search when no reference is selected. Choices stay on device in ReferenceVideos.json.
+Select **More → Open YouTube** on the playback panel, or **Settings → Scene → Open YouTube**. The jet lab opens [Safran’s explanation](https://www.youtube.com/watch?v=kz5kv0RfeUc). Other lessons retain their original references or show a video chooser. **More → Choose Video → Enter a YouTube link** loads a custom reference without modifying the authored lesson. **Find videos on YouTube** opens an external YouTube search when no reference is selected. Choices stay on device in ReferenceVideos.json.
 
-Independent mode has separate Play/Pause Video and Play/Pause Model buttons. Next, Replay, model speed and model scrubbing do not seek or truncate an independent video. A custom video never inherits origami timestamps. Paper/filter lessons still offer Step Sync for their original references; switch it off to watch freely. Closing or failing an independent video leaves the model running. Narration continues to defer while video audio is playing.
+The centered video toolbar has Play/Pause, Replay, More and Close in one row. These transport controls operate the video; model playback stays on the tabletop playback panel or in the video’s More menu. Next, Replay, model speed and model scrubbing do not seek or truncate an independent video. A custom video never inherits origami timestamps. Paper/filter lessons still offer Step Sync for their original references; switch it off to watch freely. Closing or failing an independent video leaves the model running. Narration continues to defer while video audio is playing.
 
-The video remains docked behind the workspace; use Size to enlarge it. Position adjustments are available under Place while the panel is open. Opening YouTube enables looping for mechanical labs; the playback More menu can turn looping off. Embedding still depends on the selected creator’s YouTube settings and network access.
+The video remains docked behind the workspace; use More → Video Size to enlarge it. Position adjustments are available under Place while the panel is open. Opening YouTube enables looping for mechanical labs; the playback More menu can turn looping off. Embedding still depends on the selected creator’s YouTube settings and network access.
+
+## Simpler controls and smoother playback (build 13)
+
+YouTube is back under the playback panel’s **More** menu. The floating video has one centered row of four fixed-width controls; source selection, step sync and sizing are grouped in **More**. Editing a link replaces that row with Load and Cancel. The video area is taller without increasing the window footprint.
+
+Bundled lesson validation is cached instead of repeated during rendering. Hand sampling retains full precision while the timer and scrubber update at tenths of a second. Synced animation advances between YouTube’s 150 ms snapshots, with a 300 ms extrapolation limit and immediate holds for pending commands, buffering and pause. Fresh callbacks remain authoritative. Play restarts a completed timed step.
+
+A local optimized core benchmark (1,000 ticks per case, no RealityKit/GPU) measured boat 0.319 → 0.00275 ms/tick, cabin-filter 0.289 → 0.00174, recorded playback 0.314 → 0.00274. This measures model/lookup work, not headset frame rate. Worn-headset smoothness still needs confirmation.
+
+![Centered video controls — simulator](YouTube-Build13.png)

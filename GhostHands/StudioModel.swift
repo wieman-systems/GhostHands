@@ -41,8 +41,8 @@ final class StudioModel {
     var defectFound=false
     var mechanismEngaged=false
     var coloredModels=false {didSet {saveVisualPreferences()}}
-    var mechanismAngle:Float=0
-    var mechanismBlend:Float=0
+    @ObservationIgnored var mechanismAngle:Float=0
+    @ObservationIgnored var mechanismBlend:Float=0
     func saveVisualPreferences() {
         let url=storage.deletingLastPathComponent().appendingPathComponent("VisualPreferences.json")
         do {try FileManager.default.createDirectory(at:url.deletingLastPathComponent(),withIntermediateDirectories:true);try JSONEncoder().encode(coloredModels).write(to:url,options:.atomic)} catch {self.error="Could not save model colors."}
@@ -59,7 +59,11 @@ final class StudioModel {
     var step = 0
     var clips: [MotionClip] = []
     var selected: MotionClip?
-    var elapsed = 0.0
+    // Render at full precision; publish only the tenths displayed by SwiftUI.
+    private(set) var displayedElapsed = 0.0
+    @ObservationIgnored var elapsed = 0.0 {
+        didSet {let display=(elapsed*10).rounded()/10;if displayedElapsed != display {displayedElapsed=display}}
+    }
     var speed = 0.75
     var loops = false
     var showGuides = true
@@ -107,7 +111,11 @@ final class StudioModel {
         guard canSyncVideo,!busyRecording else{return}
         syncVideo=enabled;sendVideo(seek:enabled,play:video.playing,time:enabled ? nil : video.currentTime)
     }
-    func toggleReferencePlayback() {guard !busyRecording,hasReferenceVideo else{return};sendVideo(seek:false,play:!video.playing)}
+    func toggleReferencePlayback() {
+        guard !busyRecording,hasReferenceVideo else{return}
+        if linkedVideo,!video.playing,elapsed>=progressDuration {replayCurrent();return}
+        sendVideo(seek:false,play:!video.playing)
+    }
     func replayReference() {guard !busyRecording else{return};sendVideo(seek:true,play:true)}
     func failVideo(_ message:String) {let linked=linkedVideo;video.fail(message);if linked {mode = .paused}}
 
@@ -160,9 +168,9 @@ final class StudioModel {
         matrix.columns.3 = SIMD4(position, 1)
         return matrix
     }
-    var lessons:[LessonDefinition] {LessonCatalog.all.filter(\.isValid)+customLessons}
-    var course:LessonDefinition {if isAuthoring,let draft{return draft};return lessons.first{$0.id==activeLessonID} ?? LessonCatalog.boat}
-    var currentStep:LessonStep {course.steps[min(max(step,0),course.steps.count-1)]}
+    var lessons:[LessonDefinition] {LessonCatalog.valid+customLessons}
+    var course:LessonDefinition {if isAuthoring,let draft{return draft};return LessonCatalog.byID[activeLessonID] ?? customLessons.first{$0.id==activeLessonID} ?? LessonCatalog.boat}
+    var currentStep:LessonStep {let steps=course.steps;return steps[min(max(step,0),steps.count-1)]}
     var stepCount:Int {course.steps.count}
     var lesson: PaperStep {PaperStep.all[currentStep.paperIndex ?? 0]}
     var isPaperLesson:Bool {currentStep.paperIndex != nil}
@@ -272,8 +280,8 @@ final class StudioModel {
     func videoClosed(owner:UUID?=nil) {if let owner,videoOwner != owner {return};videoOwner=nil;let wasLinked=linkedVideo;video.close();if wasLinked {mode = .paused};narrationRevision += 1}
     func changeSpeed(_ value:Double) {speed=min(2,max(0.25,value));if linkedVideo {sendVideo(seek:false,play:video.playing)}}
     func toggleLoop() {loops.toggle();if linkedVideo {sendVideo(seek:false,play:video.playing)}}
-    func acceptVideo(serial:Int,id:String,time:Double,duration:Double,state:Int,rate:Double,ended:Bool) {
-        guard video.receive(serial:serial,videoID:id,time:time,duration:duration,state:state,rate:rate) else{return}
+    func acceptVideo(serial:Int,id:String,time:Double,duration:Double,state:Int,rate:Double,ended:Bool,now:Double=CACurrentMediaTime()) {
+        guard video.receive(serial:serial,videoID:id,time:time,duration:duration,state:state,rate:rate,now:now) else{return}
         if !linkedVideo && video.playing {video.status="Playing independently · 3D model controls stay separate"}
         guard immersive,placed,interactionActive,linkedVideo,let segment=currentStep.segment else{return}
         elapsed=currentStep.staticPaper ? progressDuration : segment.progress(at:time)*progressDuration
@@ -478,7 +486,13 @@ final class StudioModel {
                 lastCapture = now
                 if elapsed >= secondsToRecord { finishRecording() }
             }
-        } else if mode == .playing, !linkedVideo {
+        } else if mode == .playing, linkedVideo {
+            // YouTube reports time sparsely. Fill the gaps without advancing through
+            // seeks, buffering, pauses or a stalled player.
+            if let time=video.projectedTime(at:now),let segment=currentStep.segment {
+                elapsed=currentStep.staticPaper ? progressDuration : segment.progress(at:time)*progressDuration
+            }
+        } else if mode == .playing {
             elapsed += dt * speed
             if elapsed >= progressDuration {
                 if loops, progressDuration > 0 { elapsed.formTruncatingRemainder(dividingBy: progressDuration) }

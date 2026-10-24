@@ -182,9 +182,9 @@ struct PlaybackControls: View {
         DeskCard(title:"GHOSTHANDS / PLAYBACK") {
             HStack {
                 Text(model.sourceLabel).font(.caption).lineLimit(1)
-                Spacer();Text("\(model.elapsed,specifier:"%.1f") / \(model.progressDuration,specifier:"%.1f")s").font(.caption.monospacedDigit())
+                Spacer();Text("\(model.displayedElapsed,specifier:"%.1f") / \(model.progressDuration,specifier:"%.1f")s").font(.caption.monospacedDigit())
             }
-            Slider(value:Binding(get:{model.elapsed},set:{model.seek($0)}),in:0...max(model.progressDuration,0.01))
+            Slider(value:Binding(get:{min(model.displayedElapsed,model.progressDuration)},set:{model.seek($0)}),in:0...max(model.progressDuration,0.01))
                 .disabled(model.busyRecording).accessibilityLabel("Playback position")
             HStack(spacing:10) {
                 Button(model.mode == .playing ? "PAUSE" : "PLAY",systemImage:model.mode == .playing ? "pause.fill" : "play.fill") {model.playPause()}
@@ -194,7 +194,6 @@ struct PlaybackControls: View {
                         Button {model.changeSpeed(speed)} label:{Label("\(speed.formatted())×",systemImage:model.speed==speed ? "checkmark" : "speedometer")}
                     }
                 } label:{Label("\(model.speed.formatted())×",systemImage:"chevron.down")}.disabled(model.busyRecording)
-                Button("YOUTUBE",systemImage:"play.rectangle") {model.showVideo()}.disabled(model.busyRecording)
                 Menu {
                     Button("Show that again",systemImage:"arrow.counterclockwise") {model.replayCurrent()}.disabled(model.busyRecording)
                     Button(model.loops ? "Turn looping off" : "Loop this action",systemImage:"repeat") {model.toggleLoop()}.disabled(model.busyRecording)
@@ -269,7 +268,7 @@ struct RecordPanel: View {
                 ForEach([15.0,30,60],id:\.self) {seconds in Button("\(Int(seconds))s") {model.secondsToRecord=seconds}.buttonStyle(SquareButton(selected:model.secondsToRecord==seconds)).disabled(model.busyRecording)}
             }
             if model.busyRecording {
-                Text(model.mode == .countdown ? "STARTING IN \(model.countdown)" : "REC / \(model.elapsed,specifier:"%.1f")s").font(.title2.monospacedDigit())
+                Text(model.mode == .countdown ? "STARTING IN \(model.countdown)" : "REC / \(model.displayedElapsed,specifier:"%.1f")s").font(.title2.monospacedDigit())
                 Button(model.mode == .countdown ? "CANCEL" : "STOP + SAVE") {if model.mode == .countdown {model.cancelCountdown()} else {model.finishRecording()}}
             } else {
                 Button("RECORD HANDS",systemImage:"record.circle") {model.beginRecording()}.buttonStyle(SquareButton(selected:true)).disabled(!model.placed || !model.capture.ready || model.saving || model.hasUnsaved)

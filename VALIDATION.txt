@@ -1,3 +1,26 @@
+BUILD 13 — OCTOBER 24, 2026
+PASS: 79 core tests and 8 player-controller scenarios. New regressions cover
+catalog/draft freshness, bounded smooth video time, stale command rejection,
+pause/buffer/end holds, native resume, completed-step Play, independent timing,
+and full-precision recorded samples with lower-frequency UI publication.
+PASS: Final Release device and Debug simulator builds. Strict signature checks
+on original and ZIP extracted outside iCloud. Archive: Builds/GhostHands-Build13.zip.
+PASS: Centered one-row controls rendered in embedded video, inspected on boat
+and jet lab. Play/Pause, Replay, More, Close; source/sync/size grouped in More.
+PASS: Final real YouTube boat probe: initial20.369s, Next123.055s, endpoint134.002s,
+Replay123.195s. Independent turbine/video probe passed earlier in this build;
+final unit tests confirm both independent pause directions after review fixes.
+PASS: Local optimized 1,000-tick core benchmark: boat0.319→0.00275 ms/tick,
+repair0.289→0.00174, recording0.314→0.00274. Identical accumulated output checksum.
+This excludes RealityKit, video decoding and GPU work; it is not headset FPS.
+PASS: Adversarial review caught completed-step Play and native-resume smoothing
+edge cases; both fixed and covered by regression assertions.
+PASS: Physical build13 installed, launched and independently version-checked.
+Documents and Library backed up; all existing Documents files preserved.
+NOT VERIFIED: Worn-headset frame rate/smoothness, dropdown targeting and reach.
+Paper mesh still uses the existing discrete fold poses; this change smooths the
+video-driven clock and reduces CPU/UI work without changing fold geometry.
+
 BUILD 12 — OCTOBER 24, 2026
 PASS: 73 core tests and 8 player-controller scenarios. New checks cover universal
 video access, custom-video timestamp isolation, independent controls/errors,

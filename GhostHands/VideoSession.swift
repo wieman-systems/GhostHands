@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import QuartzCore
 
 struct VideoCommand: Codable, Equatable {
     var serial:Int
@@ -27,6 +28,15 @@ struct VideoCommand: Codable, Equatable {
     var acknowledgedSerial = -1
     var revision=0
     var lastUpdate=Date.distantPast
+    @ObservationIgnored private var receivedAt:Double?
+    func projectedTime(at now:Double)->Double? {
+        guard visible,!failed,playing,!buffering,!waiting,let command,
+              acknowledgedSerial==command.serial,let receivedAt,now.isFinite else{return nil}
+        // A missing callback may mean the video stalled. Extrapolate for at most
+        // two normal 150 ms callbacks, then hold until fresh evidence arrives.
+        let projected=currentTime+min(0.3,max(0,now-receivedAt))*max(0,actualRate)
+        return min(projected,command.end ?? (duration>0 ? duration : projected))
+    }
     var audioBusy:Bool {visible && (playing || buffering || waiting)}
     func request(videoID:String,segment:VideoSegment?,time:Double?=nil,seek:Bool=true,play:Bool,rate:Double,loop:Bool=false) {
         guard !failed else{return}
@@ -34,9 +44,9 @@ struct VideoCommand: Codable, Equatable {
         command = .init(serial:revision,videoID:videoID,start:time ?? segment?.start ?? 0,end:segment?.end,seek:seek,play:play,rate:rate,loop:loop)
         waiting=visible && play;status=play ? "Loading this step…" : "Paused"
     }
-    @discardableResult func receive(serial:Int,videoID:String,time:Double,duration:Double,state:Int,rate:Double)->Bool {
+    @discardableResult func receive(serial:Int,videoID:String,time:Double,duration:Double,state:Int,rate:Double,now:Double=CACurrentMediaTime())->Bool {
         guard let command,serial==command.serial,videoID==command.videoID,time.isFinite,duration.isFinite,time>=0 else{return false}
-        acknowledgedSerial=serial;currentTime=time;self.duration=duration;actualRate=rate.isFinite ? rate : 1;lastUpdate=Date()
+        receivedAt=now;acknowledgedSerial=serial;currentTime=time;self.duration=duration;actualRate=rate.isFinite ? rate : 1;lastUpdate=Date()
         if state==1 || state==2 {failed=false;ready=true}
         playing=state==1;buffering=state==3;waiting=false
         status=playing ? "Video and guide linked" : buffering ? "Buffering…" : "Paused · take your time"
