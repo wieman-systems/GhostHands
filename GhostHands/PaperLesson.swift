@@ -14,8 +14,8 @@ struct PaperStep: Identifiable {
         .init(id:0,title:"Fold left to right",instruction:"Bring the left long edge to the right long edge. Match the corners, then press the fold.",check:"A half-width sheet.",action:.fold,from:[-1, 0],to:[1, 0]),
         .init(id:1,title:"Open the sheet again",instruction:"Unfold the flap you just made. Leave the center crease visible.",check:"A full Letter rectangle with a center line.",action:.unfold,from:[1, 0],to:[-1, 0]),
         .init(id:2,title:"Fold the top down",instruction:"Bring the far short edge to the near short edge. The center crease stays vertical.",check:"A wide rectangle; the closed edge is away from you.",action:.fold,from:[0, -1],to:[0, 1]),
-        .init(id:3,title:"Fold the left corner",instruction:"Bring only the top-left corner to the center line. Its top edge lines up with that center crease.",check:"One triangle on the left. Leave the bottom strip free.",action:.fold,from:[-1, 0],to:[0, 0.773]),
-        .init(id:4,title:"Fold the right corner",instruction:"Repeat with the top-right corner. The two folded edges meet in the middle.",check:"A pointed roof above a narrow rectangular strip.",action:.fold,from:[1, 0],to:[0, 0.773]),
+        .init(id:3,title:"Fold the right corner",instruction:"Bring only the top-right corner to the center line. Its top edge lines up with that center crease.",check:"One triangle on the right. Leave the bottom strip free.",action:.fold,from:[1, 0],to:[0, 0.773]),
+        .init(id:4,title:"Fold the left corner",instruction:"Repeat with the top-left corner. The two folded edges meet in the middle.",check:"A pointed roof above a narrow rectangular strip.",action:.fold,from:[-1, 0],to:[0, 0.773]),
         .init(id:5,title:"Lift the front strip",instruction:"Lift only the front layer of the bottom strip. Fold it upward along the base of the triangles.",check:"The front strip covers the bottom of the roof.",action:.fold,from:[0, 1],to:[0, 0.546]),
         .init(id:6,title:"Turn the model over",instruction:"Keep the point away from you. Turn the entire model over from left to right.",check:"The second, still-unfolded strip is facing you.",action:.flip,from:[-0.6, 0.45],to:[0.6, 0.45]),
         .init(id:7,title:"Lift the back strip",instruction:"Fold this remaining bottom strip upward along the same line.",check:"A paper hat, open at the bottom.",action:.fold,from:[0, 1],to:[0, 0.546]),
@@ -41,7 +41,7 @@ struct PaperStep: Identifiable {
         switch id {
         case 0,1,2:return Self.full
         case 3:return Self.half
-        case 4:return [[-1,1],[-1,0.773],[0,0],[1,0],[1,1]]
+        case 4:return [[-1,1],[-1,0],[0,0],[1,0.773],[1,1]]
         case 5,6,7:return Self.roof
         case 8,9,10:return Self.hat
         case 11,12,13:return Self.diamond
@@ -54,8 +54,8 @@ struct PaperStep: Identifiable {
         switch id {
         case 0,1:return ([0,-1],[0,1])
         case 2:return ([-1,0],[1,0])
-        case 3:return ([0,0],[-1,0.773])
-        case 4:return ([0,0],[1,0.773])
+        case 3:return ([0,0],[1,0.773])
+        case 4:return ([0,0],[-1,0.773])
         case 5,7:return ([-1,0.773],[1,0.773])
         default:return ([-0.65,0],[0.65,0])
         }

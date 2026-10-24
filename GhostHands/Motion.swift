@@ -60,7 +60,7 @@ struct MotionClip: Codable, Identifiable, Equatable {
         guard version == 1, !frames.isEmpty, frames.count <= 6000,
               paperSide.isFinite, (0.05...0.5).contains(paperSide),
               paperHeight == nil || (paperHeight!.isFinite && (0.05...0.5).contains(paperHeight!)), duration <= 180,
-              lessonStep == nil || (0..<max(9, PaperStep.all.count)).contains(lessonStep!) else { throw MotionError.invalid }
+              lessonStep == nil || (0..<100).contains(lessonStep!) else { throw MotionError.invalid }
         var last = -Double.infinity
         for frame in frames {
             guard frame.time.isFinite, frame.time >= 0, frame.time > last else { throw MotionError.invalid }

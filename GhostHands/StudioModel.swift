@@ -3,7 +3,7 @@ import Observation
 import QuartzCore
 import simd
 
-enum StudioTab: String, CaseIterable { case settings = "Settings", learn = "Learn", record = "Record", library = "Library", placement = "Place", video = "Video" }
+enum StudioTab: String, CaseIterable { case lessons = "Lessons", settings = "Settings", learn = "Learn", record = "Record", library = "Library", placement = "Place", video = "Video" }
 enum Transport { case idle, countdown, recording, playing, paused }
 
 @MainActor @Observable
@@ -15,6 +15,21 @@ final class StudioModel {
     var mode: Transport = .idle
     var status = "Place the workspace on your table, then follow a lesson or record your own."
     var error: String?
+    let video = VideoSession()
+    var activeLessonID = LessonCatalog.boat.id
+    var customLessons: [LessonDefinition] = []
+    var draft: LessonDefinition?
+    var isAuthoring = false
+    var syncVideo = true
+    var narrationEnabled = true
+    var narrationRevision = 0
+    private var lastEndedSerial = -1
+    var cuePlacement: String?
+    var cueOverrides: [String:SpatialCue] = [:]
+    var trayContents: Set<Int> = []
+    private var cueCalibration = TableCalibration()
+    private var cueApproach: SIMD3<Float>?
+    private var cueApproached = false
     var step = 0
     var clips: [MotionClip] = []
     var selected: MotionClip?
@@ -49,6 +64,7 @@ final class StudioModel {
     var yaw: Float = 0
     @ObservationIgnored var onRender: ((MotionFrame?, MotionFrame, Float) -> Void)?
     @ObservationIgnored private var frames: [MotionFrame] = []
+    @ObservationIgnored private var recordingContext:(lessonID:String,step:Int,title:String)?
     @ObservationIgnored private var started = 0.0
     @ObservationIgnored private var previousTick = 0.0
     @ObservationIgnored private var lastCapture = 0.0
@@ -62,6 +78,8 @@ final class StudioModel {
         self.storage = storage ?? URL.documentsDirectory.appendingPathComponent("GhostHandsRecordings", isDirectory: true)
         let result = ClipStorage.load(in: self.storage)
         clips = result.clips
+        customLessons = LessonStorage.load(in:self.storage.deletingLastPathComponent().appendingPathComponent("GhostHandsLessons"))
+        if let data=try? Data(contentsOf:self.storage.deletingLastPathComponent().appendingPathComponent("GhostHandsCues.json")),let cues=try? JSONDecoder().decode([String:SpatialCue].self,from:data) {cueOverrides=cues.filter{$0.value.isValid}}
         if result.failures > 0 { error = "\(result.failures) unreadable recording(s) were left untouched in storage." }
     }
     var busyRecording: Bool { mode == .recording || mode == .countdown }
@@ -70,8 +88,19 @@ final class StudioModel {
         matrix.columns.3 = SIMD4(position, 1)
         return matrix
     }
-    var lesson: PaperStep { PaperStep.all[step] }
-    var sourceLabel: String { selected?.isIllustration == false ? "Recorded hands" : "Illustrated motion · not a recording" }
+    var lessons:[LessonDefinition] {LessonCatalog.all.filter(\.isValid)+customLessons}
+    var course:LessonDefinition {if isAuthoring,let draft{return draft};return lessons.first{$0.id==activeLessonID} ?? LessonCatalog.boat}
+    var currentStep:LessonStep {course.steps[min(max(step,0),course.steps.count-1)]}
+    var stepCount:Int {course.steps.count}
+    var lesson: PaperStep {PaperStep.all[currentStep.paperIndex ?? 0]}
+    var isPaperLesson:Bool {currentStep.paperIndex != nil}
+    var linkedVideo:Bool {syncVideo && video.visible && !video.failed && !isAuthoring && currentStep.segment != nil && !busyRecording}
+    var cueKey:String {course.id+"/"+currentStep.id}
+    var spatialCue:SpatialCue? {cueOverrides[cueKey] ?? currentStep.cue}
+    var instructionToRead:String {"Step \(step+1). \(currentStep.title). \(currentStep.instruction). \(currentStep.check)"}
+    var progressDuration:Double {selected?.duration ?? currentStep.segment?.duration ?? 8}
+
+    var sourceLabel: String { selected?.isIllustration == false ? "Recorded hands" : isPaperLesson ? "Illustrated motion · not a recording" : "Manually placed spatial cues" }
 
     func entered() async {
         immersive = true; interactionActive = true; previousTick = 0; placed = false
@@ -82,21 +111,21 @@ final class StudioModel {
     }
     func leftStudio() {
         if mode == .recording { finishRecording() }
-        mode = .paused; immersive = false; transitioning = false
+        pauseVideo(); cuePlacement=nil; mode = .paused; immersive = false; transitioning = false
         onRender = nil; capture.stop()
     }
     func suspend() {
         if mode == .recording { finishRecording() }
-        mode = .paused; calibration.reset(); interactionActive=false; capture.clear()
+        pauseVideo();cuePlacement=nil;mode = .paused; calibration.reset(); interactionActive=false; capture.clear()
         placementReady = false
     }
     func beginPlacement() {
         guard !busyRecording else { return }
-        mode = .paused; placed = false; placementReady = false
+        pauseVideo();cuePlacement=nil;mode = .paused; placed = false; placementReady = false
         fingerPlacement = false; calibration.reset(); placementReady = false; placementProgress=0;adjustingPlacement=false
         placed = false; tab = .placement
         placementHint = "Rest your right index on the paper center and hold it still."
-        status = "Rest your right index on the paper center. Open your left hand, then pinch left to lock the table."
+        status = "Clear your workspace, then lift and rest your right index at its center for two seconds."
     }
     func startFingerPlacement() {
         guard immersive,!placed else{return}
@@ -105,7 +134,7 @@ final class StudioModel {
     }
     func beginAdjustment() {
         guard placed,!busyRecording else{return}
-        mode = .paused;adjustingPlacement=true
+        pauseVideo();mode = .paused;adjustingPlacement=true
     }
     func move(_ delta: SIMD3<Float>) {
         guard !busyRecording else { return }
@@ -114,39 +143,82 @@ final class StudioModel {
     func resizePaper(_ size: Float) {
         guard !busyRecording else { return }
         paperSide = size
-        selected = IllustratedMotion.clip(step: step, side: size)
+        selected = currentStep.paperIndex.map {IllustratedMotion.clip(step:$0,side:size)}
         elapsed = 0; mode = .paused
         status = "Guide resized. Recorded takes keep the paper size they were captured with."
     }
     func setStep(_ index: Int) {
         guard !busyRecording else { return }
-        step = min(max(index, 0), PaperStep.all.count - 1)
+        step = min(max(index, 0), stepCount - 1);cuePlacement=nil
         paperSide = LetterPaper.width; paperHeight = LetterPaper.height; showGuides = true
-        selected = IllustratedMotion.clip(step: step, side: paperSide)
-        elapsed = 0; previousTick = 0; mode = immersive && placed ? .playing : .paused
+        selected = currentStep.recordingID.flatMap {id in clips.first{$0.id==id}}
+        if selected == nil,let paper=currentStep.paperIndex {selected=IllustratedMotion.clip(step:paper,side:paperSide)}
+        elapsed = currentStep.staticPaper ? progressDuration : 0; previousTick = 0
+        mode = immersive && placed && !isAuthoring ? .playing : .paused
+        sendVideo(seek:true,play:mode == .playing,time:isAuthoring ? (currentStep.segment?.start ?? video.currentTime) : nil)
+        narrationRevision += 1
+    }
+    func chooseLesson(_ id:String) {
+        guard !busyRecording,!hasUnsaved,lessons.contains(where:{$0.id==id}) else{return}
+        isAuthoring=false;draft=nil;activeLessonID=id;trayContents=[];setStep(0);tab = .lessons
+    }
+    func sendVideo(seek:Bool,play:Bool,time:Double?=nil) {
+        guard let link=YouTubeLink(course.videoURL) else{return}
+        video.request(videoID:link.videoID,segment:isAuthoring ? nil : currentStep.segment,time:time,seek:seek,play:play,rate:speed,loop:loops && !isAuthoring)
+    }
+    func pauseVideo() {if video.visible {sendVideo(seek:false,play:false)}}
+    func videoOpened() {video.visible=true;sendVideo(seek:true,play:immersive && placed && !isAuthoring && !busyRecording)}
+    func retryVideo() {video.failed=false;video.ready=false;video.playerGeneration += 1;videoOpened()}
+    func videoClosed() {video.close();mode = .paused;narrationRevision += 1}
+    func changeSpeed(_ value:Double) {speed=min(2,max(0.25,value));if video.visible {sendVideo(seek:false,play:video.playing)}}
+    func toggleLoop() {loops.toggle();if video.visible {sendVideo(seek:false,play:video.playing)}}
+    func acceptVideo(serial:Int,id:String,time:Double,duration:Double,state:Int,rate:Double,ended:Bool) {
+        guard video.receive(serial:serial,videoID:id,time:time,duration:duration,state:state,rate:rate) else{return}
+        guard immersive,placed,interactionActive,linkedVideo,let segment=currentStep.segment else{return}
+        elapsed=currentStep.staticPaper ? progressDuration : segment.progress(at:time)*progressDuration
+        mode = state==1 ? .playing : .paused
+        if ended {elapsed=progressDuration;mode = .paused;if lastEndedSerial != serial {lastEndedSerial=serial;narrationRevision += 1}}
+    }
+    func applyVoice(_ command:VoiceCommand) {
+        guard immersive,placed,interactionActive,!busyRecording,!isAuthoring else{return}
+        switch command {
+        case .next:if step<stepCount-1 {setStep(step+1)}
+        case .back:if step>0 {setStep(step-1)}
+        case .slower:changeSpeed(speed-0.25)
+        case .faster:changeSpeed(speed+0.25)
+        case .replay:replayCurrent()
+        case .pause:mode = .paused;pauseVideo()
+        case .play:if mode != .playing {playPause()}
+        case .read:narrationRevision += 1
+        case .stopListening:break
+        }
     }
     func load(_ clip: MotionClip) {
         guard !busyRecording else { return }
         selected = clip; elapsed = 0; paperSide = clip.paperSide; paperHeight = clip.paperHeight ?? clip.paperSide
-        if clip.lessonID == "letter-boat-guided-v3", let step = clip.lessonStep { self.step = min(step, PaperStep.all.count - 1) }
-        showGuides = clip.lessonID == "letter-boat-guided-v3"
-        mode = immersive && placed ? .playing : .paused; previousTick = 0; tab = .learn
+        if clip.lessonID == "letter-boat-guided-v3", let oldStep = clip.lessonStep {
+            activeLessonID=LessonCatalog.boat.id;self.step=LessonCatalog.boat.steps.firstIndex{$0.id=="boat-\(oldStep)"} ?? 0
+        } else if let id=clip.lessonID,lessons.contains(where:{$0.id==id}) {activeLessonID=id;self.step=min(clip.lessonStep ?? 0,stepCount-1)}
+        showGuides = isPaperLesson
+        mode = immersive && placed ? .playing : .paused; previousTick = 0; tab = .learn;sendVideo(seek:true,play:mode == .playing)
     }
     func playPause() {
         guard immersive, placed, !busyRecording else { return }
-        if mode == .playing { mode = .paused; return }
+        if mode == .playing || video.playing { mode = .paused; pauseVideo();return }
         if selected == nil { setStep(step) }
-        if elapsed >= (selected?.duration ?? 0) { elapsed = 0 }
+        if elapsed >= progressDuration { elapsed = 0;if video.visible {sendVideo(seek:true,play:true);mode = .playing;return} }
         mode = .playing
+        if video.visible {sendVideo(seek:false,play:true)}
     }
     func resumeInteraction() { interactionActive=true;previousTick=0;calibration.reset() }
     func replayCurrent() {
         guard immersive,placed,!busyRecording else{return}
-        elapsed=0;previousTick=0;mode = .playing
+        elapsed=currentStep.staticPaper ? progressDuration : 0;previousTick=0;mode = .playing;sendVideo(seek:true,play:true)
     }
     func seek(_ value: Double) {
         guard !busyRecording else { return }
-        elapsed = min(max(value, 0), selected?.duration ?? 0); mode = .paused
+        elapsed = min(max(value, 0), progressDuration); mode = .paused
+        if let segment=currentStep.segment,video.visible {sendVideo(seek:true,play:false,time:segment.start+elapsed/max(progressDuration,0.01)*segment.duration)}
     }
     func beginRecording(now: Double = CACurrentMediaTime()) {
         guard immersive, placed, !busyRecording, capture.ready, !saving, unsaved == nil else { return }
@@ -154,6 +226,7 @@ final class StudioModel {
         guard live.left != nil || live.right != nil else {
             status = "Bring at least one hand into view before recording."; return
         }
+        pauseVideo();recordingContext=(course.id,step,currentStep.title)
         frames.removeAll(keepingCapacity: true); elapsed = 0; countdown = 3
         started = now + 3; lastCapture = 0; mode = .countdown
         status = "Get your hands ready. Recording starts after the countdown."
@@ -166,7 +239,7 @@ final class StudioModel {
             status = "No usable hands were captured. Keep hands in view and try again."; return
         }
         let name = recordingName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let clip = MotionClip(title: name.isEmpty ? lesson.title : name, lessonStep: step, paperSide: paperSide, paperHeight: paperHeight, lessonID: "letter-boat-guided-v3", frames: frames)
+        let clip = MotionClip(title: name.isEmpty ? (recordingContext?.title ?? currentStep.title) : name, lessonStep: recordingContext?.step ?? step, paperSide: paperSide, paperHeight: paperHeight, lessonID: recordingContext?.lessonID ?? course.id, frames: frames)
         selected = clip; unsaved = clip; elapsed = 0
         savePending()
     }
@@ -190,7 +263,36 @@ final class StudioModel {
         placed = true; fingerPlacement = false; calibration.reset()
         paperSide = LetterPaper.width; paperHeight = LetterPaper.height
         setStep(step); tab = .learn; showGuides = true
-        status = "Letter paper placed. Record a fold or play the illustrated guide."
+        status = "Workspace placed. Follow the lesson, or record a demonstration."
+    }
+    func beginCuePlacement(_ target:String) {
+        guard placed,!busyRecording else{return};pauseVideo();mode = .paused
+        cuePlacement=target;cueCalibration.reset();cueApproach=nil;cueApproached=false
+        status="Lift your RIGHT index, move it to the arrow \(target), then hold still for two seconds."
+    }
+    private func saveCues() {
+        do {let url=storage.deletingLastPathComponent().appendingPathComponent("GhostHandsCues.json");try FileManager.default.createDirectory(at:url.deletingLastPathComponent(),withIntermediateDirectories:true);try JSONEncoder().encode(cueOverrides).write(to:url,options:.atomic)} catch {self.error="Could not save spatial cues: \(error.localizedDescription)"}
+    }
+    func beginAuthoring(blank:Bool) {
+        guard !busyRecording,!hasUnsaved else{return}
+        pauseVideo();mode = .paused
+        var copy=exportLesson;copy.id="lesson-"+UUID().uuidString.lowercased();copy.title=blank ? "My lesson" : course.title+" · My edition"
+        if blank {copy.category="Custom";copy.object="My object";copy.preparation="Clear your workspace and gather the tools.";copy.tools=[];copy.spatialNote="Manually authored guidance.";copy.trayLabels=["Part 1","Part 2","Part 3","Part 4"];copy.steps=[.init(title:"First action",instruction:"Describe the action to perform.",check:"Describe the finished result.",cue:.init(label:"Target",from:[0,0.01,0],to:[0,0.08,0]))]}
+        draft=copy;isAuthoring=true;step=0;selected=nil;sendVideo(seek:true,play:false)
+    }
+    var exportLesson:LessonDefinition {
+        var result=course
+        for i in result.steps.indices {if let cue=cueOverrides[result.id+"/"+result.steps[i].id] {result.steps[i].cue=cue}}
+        return result
+    }
+    func saveDraft() {
+        guard draft != nil,!busyRecording,!hasUnsaved else{return}
+        let draft=exportLesson
+        do {try LessonStorage.save(draft,in:storage.deletingLastPathComponent().appendingPathComponent("GhostHandsLessons"));customLessons.removeAll{$0.id==draft.id};customLessons.append(draft);activeLessonID=draft.id;self.draft=nil;isAuthoring=false;setStep(0);status="Lesson saved on this device."} catch {self.error=error.localizedDescription}
+    }
+    func cancelDraft() {
+        if mode == .recording {finishRecording()} else if mode == .countdown {cancelCountdown()}
+        draft=nil;isAuthoring=false;cuePlacement=nil;setStep(0)
     }
     func tick(now: Double = CACurrentMediaTime()) {
         let dt = previousTick == 0 ? 0 : min(now - previousTick, 0.1)
@@ -219,6 +321,19 @@ final class StudioModel {
             } else {placementHint=live.right == nil ? "Right index not visible. Keep your hand in view." : "Open your right hand. Lift your index, then move it down to touch the table center."}
             if commit {confirmPlacement()}
         }
+        if let target=cuePlacement {
+            if !cueApproached,let tip=live.right?.joints[9] {
+                if cueApproach==nil {cueApproach=tip}
+                if let thumb=live.right?.joints[4],simd_distance(thumb,tip)>0.035,simd_distance(tip,cueApproach!)>0.05 {cueApproached=true}
+            }
+            if cueCalibration.update(rightTip:cueApproached ? live.right?.joints[9] : nil,leftGap:nil,now:now,automatic:true),let tip=cueCalibration.candidate {
+                let local=simd_inverse(workspace)*SIMD4(tip,1)
+                var cue=spatialCue ?? .init(label:"Target",from:[0,0.01,0],to:[0,0.08,0])
+                if target=="start" {cue.from=[local.x,local.y,local.z]} else {cue.to=[local.x,local.y,local.z]}
+                if cue.isValid {cueOverrides[cueKey]=cue;saveCues();status="Spatial cue placed."}
+                cuePlacement=nil
+            }
+        }
         let count = (live.left == nil ? 0 : 1) + (live.right == nil ? 0 : 1)
         if count != trackedHands { trackedHands = count }
         if mode == .countdown {
@@ -235,14 +350,14 @@ final class StudioModel {
                 lastCapture = now
                 if elapsed >= secondsToRecord { finishRecording() }
             }
-        } else if mode == .playing, let selected {
+        } else if mode == .playing, !linkedVideo, let selected {
             elapsed += dt * speed
             if elapsed >= selected.duration {
                 if loops, selected.duration > 0 { elapsed.formTruncatingRemainder(dividingBy: selected.duration) }
                 else { elapsed = selected.duration; mode = .paused }
             }
         }
-        let frame = busyRecording ? nil : selected?.sample(at: elapsed)
+        let frame = busyRecording || currentStep.staticPaper ? nil : selected?.sample(at: elapsed)
         onRender?(frame, live, Float(elapsed / max(selected?.duration ?? 1, 0.01)))
     }
 }

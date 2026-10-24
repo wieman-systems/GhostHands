@@ -1,3 +1,20 @@
+BUILD 8 — OCTOBER 24, 2026
+PASS: 44 core tests, zero failures. Added lesson validation/persistence, custom
+markers, generic recording limits, rapid seek rejection, segment completion,
+voice phrase parsing, guarded commands, author navigation and offline fallback.
+PASS: 8 JavaScript player scenarios, including native replay/scrub and delayed
+pause acknowledgement, latest pending command, loops and free author scrubbing.
+PASS: Release visionOS device build and Debug simulator build.
+PASS: Real YouTube embed in simulator: initial playback at20.14s, Next to123.04s,
+paused at134s without advancing, Replay returned to123.15s.
+PASS: Author editor and cabin-filter tabletop panels rendered and inspected.
+Adversarial review prompted fixes for audio overlap after native replay/scrub,
+duplicate speech dispatch, lost exported cues, generic recording validation,
+author closing/navigation and failed player startup.
+NOT VERIFIED: Real microphone recognition/echo cancellation, narration audio on
+headset, real-table contact, novice boat completion or actual car repair.
+INSTALLATION: Deferred at user's request; headset will be connected later.
+
 BUILD 7 — OCTOBER 24, 2026
 Fixed lesson navigation position with a fixed-height reading area and fixed button row.
 PASS: Signed device build and simulator build. Strict codesign verification.

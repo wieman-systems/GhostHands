@@ -39,7 +39,7 @@ final class PlacementTests: XCTestCase {
         let model=StudioModel(storage:FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
         model.immersive=true;model.placed=true
         for step in PaperStep.all {
-            model.setStep(step.id);XCTAssertEqual(model.mode,.playing);XCTAssertEqual(model.elapsed,0)
+            model.setStep(step.id);XCTAssertEqual(model.mode,.playing);XCTAssertEqual(model.elapsed,model.currentStep.staticPaper ? model.progressDuration : 0)
         }
         XCTAssertFalse(model.loops)
         model.elapsed=7.99;model.tick(now:100);model.tick(now:100.1)

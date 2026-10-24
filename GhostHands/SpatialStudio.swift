@@ -36,14 +36,27 @@ final class StudioScene {
         let avatarFrame=model.busyRecording ? MotionFrame(time:live.time,left:live.left?.transformed(by:simd_inverse(model.workspace)),right:live.right?.transformed(by:simd_inverse(model.workspace))) : frame
         human.update(frame:avatarFrame,enabled:model.avatarEnabled && model.placed && (model.busyRecording || model.selected?.isIllustration == false),tableHeight:model.avatarTableHeight)
         moveControls.isEnabled=model.placed && model.adjustingPlacement
-        paper.update(step:model.lesson,seconds:model.elapsed,width:model.paperSide,visible:model.placed && !model.adjustingPlacement && model.showGuides && model.selected?.isIllustration == true)
+        paper.update(step:model.lesson,seconds:model.elapsed,width:model.paperSide,visible:model.isPaperLesson && model.placed && !model.adjustingPlacement && model.showGuides && model.selected?.isIllustration == true)
         ghostLeft.update(model.placed && !model.adjustingPlacement && model.showHands && !model.avatarEnabled ? frame?.left : nil); ghostRight.update(model.placed && !model.adjustingPlacement && model.showHands && !model.avatarEnabled ? frame?.right : nil)
         guides.isEnabled = model.showGuides || !model.placed || model.adjustingPlacement
-        let key = "\(model.step)-\(model.paperSide)-\(model.paperHeight)-\(model.placed)-\(model.placementReady)-\(model.adjustingPlacement)"
-        if guideKey != key { guideKey = key; drawGuide(step:model.lesson,width:model.placed ? model.paperSide : LetterPaper.width,height:model.placed ? model.paperHeight : LetterPaper.height,preview:!model.placed || model.adjustingPlacement,ready:model.placementReady || model.placed) }
+        let key = "\(model.course.id)-\(String(describing:model.spatialCue))-\(model.step)-\(model.paperSide)-\(model.paperHeight)-\(model.placed)-\(model.placementReady)-\(model.adjustingPlacement)"
+        if guideKey != key { guideKey = key; if !model.isPaperLesson && model.placed && !model.adjustingPlacement {drawCue(model.spatialCue)} else {drawGuide(step:model.lesson,width:model.placed ? model.paperSide : LetterPaper.width,height:model.placed ? model.paperHeight : LetterPaper.height,preview:!model.placed || model.adjustingPlacement,ready:model.placementReady || model.placed) }}
         root.isEnabled = model.placed || model.placementReady
         panels.isEnabled = model.placed && !model.adjustingPlacement
         panels.transform = Transform(matrix:model.workspace)
+    }
+    private func drawCue(_ cue:SpatialCue?) {
+        guides.children.removeAll();guard let cue,cue.isValid else{return}
+        let a=SIMD3<Float>(cue.from[0],cue.from[1],cue.from[2]),b=SIMD3<Float>(cue.to[0],cue.to[1],cue.to[2])
+        line(a,b,color:.white,radius:0.002)
+        let d=b-a
+        if simd_length(d)>0.005 {
+            let direction=simd_normalize(d),axis:SIMD3<Float>=abs(direction.y)>0.9 ? [1,0,0] : [0,1,0]
+            let side=simd_normalize(simd_cross(direction,axis))*0.012
+            line(b,b-direction*0.025+side,color:.white,radius:0.002)
+            line(b,b-direction*0.025-side,color:.white,radius:0.002)
+        }
+        let dot=ModelEntity(mesh:.generateSphere(radius:0.008),materials:[ghostMaterial(.white.withAlphaComponent(0.55))]);dot.position=a;guides.addChild(dot)
     }
     private func line(_ a: SIMD3<Float>, _ b: SIMD3<Float>, color: UIColor, radius: Float = 0.0012) {
         let length = simd_distance(a,b)
@@ -83,6 +96,7 @@ final class StudioScene {
 
 struct SpatialStudio: View {
     @Environment(StudioModel.self) private var model
+    @Environment(VoiceCoach.self) private var voice
     @Environment(\.dismissWindow) private var dismissWindow
     @Environment(\.openWindow) private var openWindow
     @Environment(\.scenePhase) private var phase
@@ -90,7 +104,7 @@ struct SpatialStudio: View {
     var body: some View {
         RealityView { content, attachments in
             content.add(scene.root); content.add(scene.panels)
-            for (id,position) in [("lesson",SIMD3<Float>(-0.30,0.002,0)),("transport",SIMD3<Float>(0,0.002,0.25)),("tools",SIMD3<Float>(0.30,0.002,0))] {
+            for (id,position) in [("lesson",SIMD3<Float>(-0.30,0.002,0)),("transport",SIMD3<Float>(0,0.002,0.25)),("tools",SIMD3<Float>(0.30,0.002,0)),("tray",SIMD3<Float>(0,0.002,-0.28)),("cueLabel",SIMD3<Float>(0,0.002,0.13))] {
                 if let panel=attachments.entity(for:id) {
                     panel.position=position;panel.scale=SIMD3(repeating:0.48)
                     panel.orientation=simd_quatf(angle:-Float.pi/2,axis:[1,0,0]);scene.panels.addChild(panel)
@@ -105,6 +119,8 @@ struct SpatialStudio: View {
             do { try await scene.loadHands() } catch { model.error="Could not load the hand holograms: \(error.localizedDescription)" }
             model.onRender = { [scene, model] frame, live, _ in scene.render(model:model,frame:frame,live:live) }
         } attachments: {
+            Attachment(id:"tray") {PartsTray().opacity(model.course.trayLabels.isEmpty ? 0 : 1).allowsHitTesting(!model.course.trayLabels.isEmpty)}
+            Attachment(id:"cueLabel") {Text(model.spatialCue?.label ?? "Place a marker in Place").font(.caption).padding(10).background(.black).foregroundStyle(.white).opacity(model.isPaperLesson ? 0 : 1)}
             Attachment(id:"lesson") { LessonPanel() }
             Attachment(id:"transport") { PlaybackControls() }
             Attachment(id:"tools") { SpatialControls() }
@@ -123,6 +139,7 @@ struct SpatialStudio: View {
                 try? await Task.sleep(for:.milliseconds(16))
             }
         }
+        .task {await voice.run(model)}
         .task(id:model.avatarEnabled) {
             guard model.avatarEnabled else {model.avatarStatus="Off";return}
             model.avatarStatus="Loading human model…"
