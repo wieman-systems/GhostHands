@@ -310,6 +310,60 @@
       "lesson": "centrifugal-pump-lab",
       "step": "layers",
       "text": "Open the pump assembly. Use the exploded view to separate the front flange, impeller and back housing. Inspect the curved vanes, drive shaft and bolted casing."
+    },
+    {
+      "file": "1e75c41e3bc95f69bd8e0fbd453993924408fdb3de79e56399687f3ada995d9f.mp3",
+      "lesson": "cam-follower-lab",
+      "step": "drive",
+      "text": "Rotation becomes lift. The shaft turns the off-center circular cam. Its highest point rises and falls once each turn, lifting the flat follower above it."
+    },
+    {
+      "file": "d753d8436b26dbf34b3df3aff90418c3fe0ce958e9ccac16f2504f6ac96df470.mp3",
+      "lesson": "cam-follower-lab",
+      "step": "contact",
+      "text": "Follow the contact. Choose a slow speed. Watch the follower stay on top of the cam while its stem slides through the fixed guide. The guide prevents sideways movement."
+    },
+    {
+      "file": "77fe7b2b9281538d595cbaca84a6b81b222c340d771921d1145cd6c405d5f2a3.mp3",
+      "lesson": "cam-follower-lab",
+      "step": "check",
+      "text": "Compare the travel. Pause near the top and bottom of the cycle. The cam offset determines the follower's travel. The same principle appears in timing mechanisms and mechanical toys."
+    },
+    {
+      "file": "bbaa3ae83e91e421991217e8705fd74806779e98441fc4c9b36c8004014f892b.mp3",
+      "lesson": "belt-drive-lab",
+      "step": "drive",
+      "text": "Follow the belt path. The small pulley drives the large pulley through an open belt. Trace the upper straight run, the large pulley wrap, the lower run and the small pulley wrap."
+    },
+    {
+      "file": "efe3ea3d0951eba6b030c360fb09e9b0f4e604f97047c1b99f62a1541b0e377a.mp3",
+      "lesson": "belt-drive-lab",
+      "step": "ratio",
+      "text": "Two turns become one. The large pulley has twice the diameter of the small one. With no slip, it makes one turn while the small pulley makes two. Use the bright witness spokes to count."
+    },
+    {
+      "file": "9538df5f19687b381937afca265c550966523eacd4cb3eb7db97f0e113f83968.mp3",
+      "lesson": "belt-drive-lab",
+      "step": "check",
+      "text": "Inspect the drive. Pause and rotate the model to see the pulley rims and shaft supports. In real machines, alignment, belt condition and tension matter; this model only explains the motion."
+    },
+    {
+      "file": "9c15924c0a0878707d952784bd65939112ce89ea6911e6fdd1b49f7416e0970d.mp3",
+      "lesson": "crank-slider-lab",
+      "step": "drive",
+      "text": "Trace the three moving parts. The crank pin travels around a circle. The rigid connecting rod carries that movement to a slider constrained by two straight rails."
+    },
+    {
+      "file": "c5cf89f2a6643c3906f2690c2d3f9c0046cd4d3e67400e94d04338ff11a98837.mp3",
+      "lesson": "crank-slider-lab",
+      "step": "ends",
+      "text": "Find the two end positions. Slow down and watch the crank line up with the rod. These are the ends of the slider's travel. One crank revolution produces one complete out-and-back stroke."
+    },
+    {
+      "file": "0da107a6ed24cc8818bd40fcf0908498b8e937528b262dbbcc5db88f9c4e9dcc.mp3",
+      "lesson": "crank-slider-lab",
+      "step": "check",
+      "text": "Compare motion through the cycle. The crank turns steadily, but the slider changes speed and reverses direction. Scrub the animation and see how the rod tilts without changing length."
     }
   ]
 }

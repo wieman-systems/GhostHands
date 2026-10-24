@@ -16,9 +16,9 @@ enum ModelSurface {
     static func color(_ part:LabPart?)->UIColor {
         switch part {
         case .fan,.disc,.driver:return UIColor(red:0.65,green:0.72,blue:0.78,alpha:1)
-        case .compressor,.outlet,.volute:return UIColor(red:0.12,green:0.42,blue:0.55,alpha:1)
-        case .combustor,.caliper:return UIColor(red:0.8,green:0.15,blue:0.08,alpha:1)
-        case .turbine,.impeller,.driven:return UIColor(red:0.77,green:0.52,blue:0.18,alpha:1)
+        case .compressor,.outlet,.volute,.follower,.slider:return UIColor(red:0.12,green:0.42,blue:0.55,alpha:1)
+        case .combustor,.caliper,.cam,.crank:return UIColor(red:0.8,green:0.15,blue:0.08,alpha:1)
+        case .turbine,.impeller,.driven,.rod:return UIColor(red:0.77,green:0.52,blue:0.18,alpha:1)
         case .pads:return UIColor(white:0.16,alpha:1)
         default:return UIColor(white:0.58,alpha:1)
         }

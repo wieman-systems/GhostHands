@@ -27,7 +27,7 @@ struct LessonStep: Codable, Identifiable, Equatable {
     var reassembly: Bool = false
     var recordingID: UUID?
 }
-enum MechanicalModel:String,Codable {case engine,cabinFilter,jet,gearbox,brake,pump}
+enum MechanicalModel:String,Codable {case engine,cabinFilter,jet,gearbox,brake,pump,cam,belt,crank}
 
 struct LessonDefinition: Codable, Identifiable, Equatable {
     var version = 1
@@ -92,7 +92,7 @@ enum LessonCatalog {
             s("exhaust","4 / Exhaust","The exhaust valve opens. The rising piston pushes spent gas out. Four strokes complete one cycle over two crankshaft revolutions.","Exhaust exits as the piston rises; Replay repeats this stroke.")
         ],mechanicalModel:.engine)
     }()
-    static let all:[LessonDefinition] = [boat,repair,engine,jet,gearbox,brake,pump]
+    static let all:[LessonDefinition] = [boat,repair,engine,jet,gearbox,brake,pump,cam,belt,crank]
     // Bundled lessons are immutable. Validate once, outside the animation loop.
     static let valid = all.filter(\.isValid)
     static let byID = Dictionary(valid.map {($0.id,$0)},uniquingKeysWith: {first,_ in first})

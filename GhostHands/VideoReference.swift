@@ -43,7 +43,7 @@ struct VideoControlPanel:View {
     @State private var editingLink=false
     @State private var link=""
     var body:some View {
-        DeskCard(title:"03 / YOUTUBE",height:218) {
+        DeskCard(title:"03 / YOUTUBE",height:250) {
             if editingLink {
                 TextField("Paste or dictate a YouTube link",text:$link).textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.plain).padding(8).overlay(Rectangle().stroke(.white.opacity(0.4))).frame(height:38)
                 HStack {
@@ -62,8 +62,8 @@ struct VideoControlPanel:View {
                     Button(model.video.visible ? "CLOSE" : "OPEN",systemImage:model.video.visible ? "xmark" : "play.rectangle") {if model.video.visible {model.closeReference();dismiss(id:"video")} else {model.showVideo()}}
                 }
             }
-            Text(model.movingVideo ? "Pinch and drag the screen anywhere. Done locks it in place." : model.video.status).font(.caption).lineLimit(2).frame(height:30,alignment:.topLeading)
-        }.frame(width:470,height:218).environment(\.compactControls,true)
+            Text(model.movingVideo ? "Drag to move; pinch with both hands to resize. The screen faces you. Done locks it." : model.video.status).font(.caption).lineLimit(2).frame(height:30,alignment:.topLeading)
+        }.frame(width:470,height:250).environment(\.compactControls,true)
             .onChange(of:model.course.id) {_,_ in editingLink=false}
     }
     private var videoMenu:some View {

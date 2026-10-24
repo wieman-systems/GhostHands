@@ -94,6 +94,9 @@ struct HomeView: View {
                         if ProcessInfo.processInfo.arguments.contains("--jet-preview") {model.chooseLesson(LessonCatalog.jet.id);model.setStep(4);model.seek(2)}
                         if ProcessInfo.processInfo.arguments.contains("--gear-preview") {model.chooseLesson(LessonCatalog.gearbox.id);model.setStep(1);model.seek(2)}
                         if ProcessInfo.processInfo.arguments.contains("--independent-video-preview") {model.chooseLesson(LessonCatalog.jet.id);model.loops=true;model.showVideo()}
+                        for (flag,lesson) in [("--cam-preview",LessonCatalog.cam),("--belt-preview",LessonCatalog.belt),("--crank-preview",LessonCatalog.crank)] {
+                            if ProcessInfo.processInfo.arguments.contains(flag) {model.chooseLesson(lesson.id);model.seek(2);model.showVideo()}
+                        }
                         if ProcessInfo.processInfo.arguments.contains("--color-preview") {model.coloredModels=true}
                         if ProcessInfo.processInfo.arguments.contains("--video-only-preview") {model.showVideo();model.toggleVideoOnly();model.movingVideo=true;model.moveVideo(to:[0.12,0.42,-0.4]);model.movingVideo=false}
                         if ProcessInfo.processInfo.arguments.contains("--brake-preview") {model.chooseLesson(LessonCatalog.brake.id);model.loops=true}
@@ -142,15 +145,15 @@ struct HomeView: View {
 struct LessonPanel: View {
     @Environment(StudioModel.self) private var model
     var body: some View {
-        DeskCard(title:"01 / LEARN",height:820) {
+        DeskCard(title:"01 / LEARN",height:590) {
             HStack { Text(model.course.title).font(.title2.bold()).lineLimit(1); Spacer(); Text(String(format:"%02d / %02d",model.step+1,model.stepCount)).font(.title3.monospacedDigit()) }
             if model.isPaperLesson {
             HStack(alignment:.top) {
-                VStack(alignment:.leading,spacing:6) {Text("START SHAPE").font(.caption2.monospaced());PaperFinishDiagram(step:model.lesson,progress:model.currentStep.staticPaper ? 1 : 0).frame(height:110)}
-                VStack(alignment:.leading,spacing:6) {Text("FINISH SHAPE").font(.caption2.monospaced());PaperFinishDiagram(step:model.lesson).frame(height:110)}
-            }.frame(height:130)
+                VStack(alignment:.leading,spacing:6) {Text("START SHAPE").font(.caption2.monospaced());PaperFinishDiagram(step:model.lesson,progress:model.currentStep.staticPaper ? 1 : 0).frame(height:60)}
+                VStack(alignment:.leading,spacing:6) {Text("FINISH SHAPE").font(.caption2.monospaced());PaperFinishDiagram(step:model.lesson).frame(height:60)}
+            }.frame(height:80)
             } else {
-                VStack(spacing:10) {Image(systemName:model.course.mechanicalModel == .jet ? "airplane" : "wrench.and.screwdriver").font(.system(size:38));Text(model.course.object).font(.caption);Text(model.course.mechanicalModel == .jet ? "TURBOFAN INSPECTION LAB" : model.course.mechanicalModel == .gearbox ? "GEAR DRIVE LAB" : model.course.mechanicalModel == .engine ? "ANIMATED ENGINE CUTAWAY" : [.brake,.pump].contains(model.course.mechanicalModel) ? "INTERACTIVE MECHANISM" : "MANUAL SPATIAL GUIDANCE").font(.caption2.monospaced())}.frame(maxWidth:.infinity).frame(height:130)
+                VStack(spacing:6) {Image(systemName:model.course.mechanicalModel == .jet ? "airplane" : "wrench.and.screwdriver").font(.system(size:28));Text(model.course.object).font(.caption);Text(model.course.mechanicalModel == .jet ? "TURBOFAN INSPECTION LAB" : model.course.mechanicalModel == .gearbox ? "GEAR DRIVE LAB" : model.course.mechanicalModel == .engine ? "ANIMATED ENGINE CUTAWAY" : [.brake,.pump,.cam,.belt,.crank].contains(model.course.mechanicalModel) ? "INTERACTIVE MECHANISM" : "MANUAL SPATIAL GUIDANCE").font(.caption2.monospaced())}.frame(maxWidth:.infinity).frame(height:80)
             }
             // Reserve a fixed reading area so the tabletop touch targets never move.
             ScrollView {
@@ -160,19 +163,15 @@ struct LessonPanel: View {
                     Text(model.currentStep.instruction).font(.system(size:17)).fixedSize(horizontal:false,vertical:true)
                     Text(model.currentStep.check).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
                 }.frame(maxWidth:.infinity,alignment:.leading)
-            }.frame(height:250).id(model.step)
+            }.frame(height:190).id(model.step)
             HStack(spacing:12) {
                 Button {model.setStep(model.step-1)} label:{Image(systemName:"arrow.left")}
                     .frame(width:76).disabled(model.step==0 || model.busyRecording)
                 Button(model.step==model.stepCount-1 ? "FINISHED" : "NEXT STEP") {model.setStep(model.step+1)}
                     .frame(maxWidth:.infinity).disabled(model.step==model.stepCount-1 || model.busyRecording)
             }.frame(height:52)
-            HStack {
-                Button("SHOW START") {model.seek(0)}
-                Button("SHOW FINISH") {model.seek(model.progressDuration)}
-            }.disabled(model.busyRecording)
             Text(model.currentStep.id=="inspect" ? (model.defectFound ? "FINDING MARKED · Compare the damaged part with its neighbors." : "Find the short blade or tooth and tap it. Inspect has a hint.") : "Watch this action, then try it. Say “next” to continue.").font(.system(size:11)).foregroundStyle(.secondary)
-        }.frame(width:470,height:820)
+        }.frame(width:470,height:590).environment(\.compactControls,true)
     }
 }
 
@@ -181,7 +180,7 @@ struct PlaybackControls: View {
     @Environment(\.dismissImmersiveSpace) private var dismiss
     @Environment(\.openWindow) private var open
     var body: some View {
-        DeskCard(title:"GHOSTHANDS / PLAYBACK") {
+        DeskCard(title:"03 / ANIMATION",height:250) {
             HStack {
                 Text(model.sourceLabel).font(.caption).lineLimit(1)
                 Spacer();Text("\(model.displayedElapsed,specifier:"%.1f") / \(model.progressDuration,specifier:"%.1f")s").font(.caption.monospacedDigit())
@@ -226,10 +225,10 @@ struct PlaybackControls: View {
                     if model.currentStep.id=="inspect" {Button(model.revealDefect ? "Hide hint" : "Reveal defect"){model.revealDefect.toggle()}}
                     Button("Reset view"){model.modelRotation=0;model.modelScale=1;model.explodedView=false;model.engineFocus=nil;model.labFocus=nil;model.revealDefect=false}
                 } label:{Label("INSPECT",systemImage:"chevron.down")}.disabled(model.course.mechanicalModel == nil || model.busyRecording)
-                Text(model.labFocus?.detail ?? model.engineFocus?.detail ?? "Tap a model part to inspect it.").font(.caption2).lineLimit(3).frame(width:200,height:44,alignment:.leading)
+                Text(model.labFocus?.detail ?? model.engineFocus?.detail ?? "Tap a model part to inspect it.").font(.caption2).lineLimit(3).frame(width:150,height:44,alignment:.leading)
             }.frame(height:46)
 
-        }.frame(width:570,height:310).environment(\.compactControls,true)
+        }.frame(width:470,height:250).environment(\.compactControls,true)
     }
 }
 

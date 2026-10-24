@@ -82,13 +82,26 @@ final class StudioModel {
     var videoOnly=false
     var movingVideo=false
     var videoX:Float=0
-    var videoYaw:Float=0
+    @ObservationIgnored var videoYaw:Float=0
+    @ObservationIgnored var videoPitch:Float=0
     var videoPosition:SIMD3<Float> {SIMD3(videoX,videoHeight,videoDepth)}
     func moveVideo(to point:SIMD3<Float>) {
         guard movingVideo,dockedVideo,workspaceVisible,point.isFinite,simd_length(point)<5 else{return}
         videoX=point.x;videoHeight=point.y;videoDepth=point.z
     }
-    func resetVideoPosition() {movingVideo=false;videoX=0;videoHeight=0.30;videoDepth = -0.29;videoYaw=0}
+    func resizeVideo(to scale:Float) {
+        guard movingVideo,dockedVideo,workspaceVisible,scale.isFinite else{return}
+        videoScale=min(1.4,max(0.35,scale))
+    }
+    func faceVideo(toward head:SIMD3<Float>) {
+        guard movingVideo,dockedVideo,workspaceVisible,head.isFinite else{return}
+        let local=simd_inverse(workspace)*SIMD4(head,1)
+        let direction=SIMD3(local.x,local.y,local.z)-videoPosition,length=simd_length(direction)
+        guard length.isFinite,length>0.10 else{return}
+        if simd_length(SIMD2(direction.x,direction.z))>0.03 {videoYaw=atan2(direction.x,direction.z)}
+        videoPitch = -asin(min(1,max(-1,direction.y/length)))
+    }
+    func resetVideoPosition() {movingVideo=false;videoX=0;videoHeight=0.30;videoDepth = -0.29;videoYaw=0;videoPitch=0}
     func closeReference() {movingVideo=false;videoClosed();dockedVideo=false}
     func toggleVideoOnly() {videoOnly.toggle();if videoOnly {videoScale=max(videoScale,0.85)}}
     var videoHeight:Float=0.30
@@ -204,7 +217,7 @@ final class StudioModel {
     }
     var progressDuration:Double {selected?.duration ?? currentStep.segment?.duration ?? 8}
 
-    var sourceLabel: String { selected?.isIllustration == false ? "Recorded hands" : isPaperLesson ? "Illustrated motion · not a recording" : course.mechanicalModel == .brake ? "Disc brake · interactive assembly" : course.mechanicalModel == .pump ? "Water pump · interactive assembly" : course.mechanicalModel == .jet ? "Turbofan · teaching cutaway" : course.mechanicalModel == .gearbox ? "Gear drive · teaching assembly" : course.mechanicalModel == .engine ? "Engine cutaway · illustrative" : course.mechanicalModel == .cabinFilter ? "Manual cues + filter model" : "Manually placed spatial cues" }
+    var sourceLabel: String { selected?.isIllustration == false ? "Recorded hands" : isPaperLesson ? "Illustrated motion · not a recording" : [.cam,.belt,.crank].contains(course.mechanicalModel) ? "Animated mechanism · ideal geometry" : course.mechanicalModel == .brake ? "Disc brake · interactive assembly" : course.mechanicalModel == .pump ? "Water pump · interactive assembly" : course.mechanicalModel == .jet ? "Turbofan · teaching cutaway" : course.mechanicalModel == .gearbox ? "Gear drive · teaching assembly" : course.mechanicalModel == .engine ? "Engine cutaway · illustrative" : course.mechanicalModel == .cabinFilter ? "Manual cues + filter model" : "Manually placed spatial cues" }
 
     func entered() async {
         guard !immersive else{return}
@@ -270,7 +283,7 @@ final class StudioModel {
     }
     func chooseLesson(_ id:String) {
         guard !busyRecording,!hasUnsaved,lessons.contains(where:{$0.id==id}) else{return}
-        pauseVideo();isAuthoring=false;draft=nil;activeLessonID=id;trayContents=[];engineFocus=nil;labFocus=nil;explodedView=false;modelScale=1;modelRotation=0;mechanismEngaged=false;mechanismAngle=0;mechanismBlend=0;loops=[.brake,.pump].contains(course.mechanicalModel);setStep(0);tab = .lessons
+        pauseVideo();isAuthoring=false;draft=nil;activeLessonID=id;trayContents=[];engineFocus=nil;labFocus=nil;explodedView=false;modelScale=1;modelRotation=0;mechanismEngaged=false;mechanismAngle=0;mechanismBlend=0;loops=[.brake,.pump,.cam,.belt,.crank].contains(course.mechanicalModel);setStep(0);tab = .lessons
     }
     func reconcileReference() {
         guard let link=YouTubeLink(referenceURL) else {video.clearPlayback();return}
@@ -515,6 +528,9 @@ final class StudioModel {
             let target:Float=mechanismEngaged ? 1 : 0
             mechanismBlend += (target-mechanismBlend)*min(1,Float(max(0,dt))*7)
             mechanismAngle += Float(max(0,dt)*speed)*4*(1-mechanismBlend)
+        }
+        if movingVideo,let head=capture.headTransform() {
+            faceVideo(toward:SIMD3(head.columns.3.x,head.columns.3.y,head.columns.3.z))
         }
         let frame = busyRecording || currentStep.staticPaper ? nil : selected?.sample(at: elapsed)
         onRender?(frame, live, Float(elapsed / max(selected?.duration ?? 1, 0.01)))

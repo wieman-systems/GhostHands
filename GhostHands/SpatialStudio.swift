@@ -19,6 +19,7 @@ final class StudioScene {
     let mechanical = MechanicalVisual()
     let lab = LabVisual()
     let detailed = DetailedVisual()
+    let mechanisms=MechanismVisual()
     let videoPanel = Entity()
     let videoDragTarget=ModelEntity()
     var frameSubscription:EventSubscription?
@@ -33,7 +34,7 @@ final class StudioScene {
     var guideKey = ""
     init() {
         root.addChild(guides);root.addChild(moveControls)
-        root.addChild(paper.root);root.addChild(human.root);root.addChild(mechanical.root);root.addChild(lab.root);root.addChild(detailed.root);root.addChild(videoPanel)
+        root.addChild(paper.root);root.addChild(human.root);root.addChild(mechanical.root);root.addChild(lab.root);root.addChild(detailed.root);root.addChild(mechanisms.root);root.addChild(videoPanel)
         root.addChild(ghostLeft.root); root.addChild(ghostRight.root)
         videoDragTarget.name="video-move"
         videoDragTarget.model=ModelComponent(mesh:.generateBox(size:1),materials:[ghostMaterial(.white.withAlphaComponent(0.08))])
@@ -45,9 +46,9 @@ final class StudioScene {
     }
     func render(model: StudioModel, frame: MotionFrame?, live: MotionFrame) {
         root.transform = Transform(matrix: model.workspace)
-        mechanical.update(model:model);lab.update(model);detailed.update(model)
+        mechanical.update(model:model);lab.update(model);detailed.update(model);mechanisms.update(model)
         videoPanel.position=model.videoPosition
-        videoPanel.orientation=simd_quatf(angle:model.videoYaw,axis:[0,1,0])
+        videoPanel.orientation=simd_quatf(angle:model.videoYaw,axis:[0,1,0])*simd_quatf(angle:model.videoPitch,axis:[1,0,0])
         if let screen=videoPanel.children.first(where:{$0 !== videoDragTarget}) {
             screen.scale=SIMD3(repeating:model.videoScale)
             let bounds=screen.visualBounds(relativeTo:videoPanel)
@@ -125,16 +126,17 @@ struct SpatialStudio: View {
     @Environment(\.scenePhase) private var phase
     @State private var scene = StudioScene()
     @State private var videoDragOrigin:SIMD3<Float>?
+    @State private var videoScaleOrigin:Float?
     private var spatialContent:some View {
         RealityView { content, attachments in
             content.add(scene.root); content.add(scene.panels)
-            for (id,position) in [("lesson",SIMD3<Float>(-0.30,0.002,0)),("transport",SIMD3<Float>(0,0.002,-0.25)),("tools",SIMD3<Float>(0.30,0.002,0)),("tray",SIMD3<Float>(0,0.002,0.27)),("cueLabel",SIMD3<Float>(0,0.002,0.13))] {
+            for (id,position) in [("lesson",SIMD3<Float>(-0.30,0.002,0)),("tools",SIMD3<Float>(0.30,0.002,0)),("tray",SIMD3<Float>(0,0.002,0.27)),("cueLabel",SIMD3<Float>(0,0.002,0.13))] {
                 if let panel=attachments.entity(for:id) {
                     panel.position=position;panel.scale=SIMD3(repeating:0.48)
                     panel.orientation=simd_quatf(angle:-Float.pi/2,axis:[1,0,0]);scene.panels.addChild(panel)
                 }
             }
-            if let video=attachments.entity(for:"dockedVideo") {video.scale=SIMD3(repeating:model.videoScale);video.orientation=simd_quatf(angle:-0.12,axis:[1,0,0]);scene.videoPanel.addChild(video)}
+            if let video=attachments.entity(for:"dockedVideo") {video.scale=SIMD3(repeating:model.videoScale);scene.videoPanel.addChild(video)}
             for (id,position) in [("moveLeft",SIMD3<Float>(-0.17,0.003,0)),("moveRight",SIMD3<Float>(0.17,0.003,0)),("moveAway",SIMD3<Float>(0,0.003,-0.19)),("moveNear",SIMD3<Float>(0,0.003,0.19)),("moveUp",SIMD3<Float>(0.19,0.003,-0.11)),("moveDown",SIMD3<Float>(0.19,0.003,0.11)),("moveDone",SIMD3<Float>(0,0.003,-0.25))] {
                 if let control=attachments.entity(for:id) {
                     control.position=position;control.scale=SIMD3(repeating:0.5)
@@ -153,8 +155,7 @@ struct SpatialStudio: View {
             }
             Attachment(id:"tray") {PartsTray().opacity(model.course.trayLabels.isEmpty ? 0 : 1).allowsHitTesting(!model.course.trayLabels.isEmpty)}
             Attachment(id:"cueLabel") {SpatialCueLabel()}
-            Attachment(id:"lesson") { LessonPanel() }
-            Attachment(id:"transport") { PlaybackControls() }
+            Attachment(id:"lesson") {LeftWorkspacePanel()}
             Attachment(id:"tools") {RightWorkspacePanel()}
             Attachment(id:"moveLeft") {PaperMoveControl(label:"← LEFT",delta:[-0.01,0,0])}
             Attachment(id:"moveRight") {PaperMoveControl(label:"RIGHT →",delta:[0.01,0,0])}
@@ -180,8 +181,14 @@ struct SpatialStudio: View {
                 let delta=value.convert(value.translation3D,from:.local,to:scene.root)
                 model.moveVideo(to:videoDragOrigin!+delta)
             }.onEnded {_ in videoDragOrigin=nil})
-        .onChange(of:model.movingVideo) {_,_ in videoDragOrigin=nil}
-        .onChange(of:model.workspaceVisible) {_,visible in if !visible {model.movingVideo=false;videoDragOrigin=nil}}
+        .simultaneousGesture(MagnifyGesture().targetedToEntity(scene.videoDragTarget)
+            .onChanged {value in
+                guard model.movingVideo,model.workspaceVisible else {videoScaleOrigin=nil;return}
+                if videoScaleOrigin==nil {videoScaleOrigin=model.videoScale}
+                model.resizeVideo(to:videoScaleOrigin!*Float(value.magnification))
+            }.onEnded {_ in videoScaleOrigin=nil})
+        .onChange(of:model.movingVideo) {_,_ in videoDragOrigin=nil;videoScaleOrigin=nil}
+        .onChange(of:model.workspaceVisible) {_,visible in if !visible {model.movingVideo=false;videoDragOrigin=nil;videoScaleOrigin=nil}}
     }
     var body:some View {
         interactiveScene.task {await model.entered()}
@@ -196,7 +203,7 @@ struct SpatialStudio: View {
         .onChange(of:model.trackingIssue) {_,issue in
             if issue != nil {openWindow(id:"home")} else if model.placed {dismissWindow(id:"home")}
         }
-        .onDisappear {scene.frameSubscription?.cancel();scene.frameSubscription=nil;videoDragOrigin=nil;model.movingVideo=false;model.leftStudio()}
+        .onDisappear {scene.frameSubscription?.cancel();scene.frameSubscription=nil;videoDragOrigin=nil;videoScaleOrigin=nil;model.movingVideo=false;model.leftStudio()}
         .onChange(of:phase) { _,phase in if phase != .active { model.suspend() } else { model.resumeInteraction() } }
     }
 }
@@ -209,5 +216,9 @@ struct SpatialCueLabel:View {
     }
 }
 struct RightWorkspacePanel:View {
-    var body:some View {VStack(spacing:12) {SpatialControls();VideoControlPanel()}.frame(width:470,height:820)}
+    var body:some View {VStack(spacing:12) {SpatialControls();VideoControlPanel()}.frame(width:470,height:852)}
+}
+
+struct LeftWorkspacePanel:View {
+    var body:some View {VStack(spacing:12) {LessonPanel();PlaybackControls()}.frame(width:470,height:852)}
 }

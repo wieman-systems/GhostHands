@@ -78,7 +78,7 @@ swift test --scratch-path /tmp/GhostHandsTests --disable-sandbox
 node Scripts/player-controller-tests.cjs
 ```
 
-Build 14: 82 core tests and 8 player-controller scenarios passed. Device and simulator builds succeeded. New tests verify universal video access, custom-video timing isolation, independent transport, sync toggling, persistent choices and reference reconciliation across lesson/recording changes. Live player and installation results are in `VALIDATION.txt`. Worn-headset reach and audio still require user testing.
+Build 15: 88 core tests and 8 player-controller scenarios passed. Device and simulator builds succeeded. New tests verify universal video access, custom-video timing isolation, independent transport, sync toggling, persistent choices and reference reconciliation across lesson/recording changes. Live player and installation results are in `VALIDATION.txt`. Worn-headset reach and audio still require user testing.
 
 ## Data and assets
 
@@ -151,3 +151,21 @@ API references: [Apple LowLevelMesh](https://developer.apple.com/documentation/r
 ![Matched tabletop panels — simulator](Workspace-Build14.png)
 
 ![Moved video-only screen — simulator](VideoOnly-Build14.png)
+
+## Symmetric controls, two-hand sizing and more mechanisms (build 15)
+
+Both tabletop columns are **470 × 852**: a 590-point panel, a 12-point gap, and 250-point controls. Animation transport is beneath the left lesson panel; video controls are beneath the right workspace panel.
+
+In video **Move** mode, use a **two-handed pinch-and-spread gesture** on the screen to resize it (bounded to 0.35–1.4 scale). Drag still moves it. During Move the screen faces the tracked head in yaw and pitch; Done locks the resulting pose. A small vertical dead zone prevents heading flips above or below the head. No video gesture changes the workspace anchor.
+
+Three original selectable teaching assemblies were added, each with three steps, looping motion, part highlighting, existing color controls and bundled Cedar narration:
+
+| Model | Demonstration | Matched video reference |
+|---|---|---|
+| Cam and follower | Eccentric disk lifts a guided flat follower | [CAD CAM 23 — cam and follower](https://www.youtube.com/watch?v=2u0VlFaJ0nE) |
+| Belt and pulley drive | Open belt; large pulley turns at half input speed | [Jay Panchal — V-belt animation](https://www.youtube.com/watch?v=v5urs0gWF3U) |
+| Crank-slider linkage | Rigid rod converts circular motion into an 80 mm stroke | [Ujjwal Suryakant Rane — slider-crank kinematics](https://www.youtube.com/watch?v=G6XZvkfiIng) |
+
+Titles and publishers for these and the four previously assigned references were checked through YouTube oEmbed on October 24, 2026; metadata is in `VideoReferences.json`. The new videos explain the same mechanisms and run independently, without invented step timestamps. The model geometry is illustrative rather than a replica of each video's CAD or a repair specification. Existing user-selected video overrides are preserved.
+
+![Symmetric controls and crank-slider — simulator](Crank-Build15.png)

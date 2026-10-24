@@ -1,3 +1,28 @@
+BUILD 15 — OCTOBER 24, 2026
+PASS: 88 core tests and 8 player-controller scenarios. New tests cover bounded
+pinch scaling, head-facing transforms under rotated workspace coordinates,
+near-vertical heading continuity, no movement after Done, crank rod length and
+stroke, cam travel, belt continuity/tangency and distinct independent references.
+PASS: Release device and Debug simulator builds; strict signature verification
+before packaging and after extracting GhostHands-Build15.zip outside iCloud.
+PASS: Rendered symmetric 470x852 columns (590+12+250), animation controls below
+left and YouTube controls below right. Old far-edge transport attachment removed.
+PASS: Cam, belt and crank mechanisms rendered with matching real YouTube embeds.
+New reference titles/publishers and four existing references verified via YouTube
+oEmbed; public metadata in VideoReferences.json. No new step timestamps invented.
+PASS: Nine additional Cedar narration clips bundled; all 60 built-in steps have
+matching narration assets. Manifest preserves AI-generated voice disclosure.
+PASS: Adversarial review. Corrected near-vertical heading flips and unsupported
+crank rails/end-support placement. No workspace anchor writes from video gestures.
+DATA: Documents backed up. Full Library copy timed out; Preferences separately
+backed up successfully. Existing data container is retained by the in-place update.
+PASS: Build 15 installed and launched on the connected Vision Pro; independent
+installed-app query confirms bundle version 15. All 14 pre-update Documents files
+remain unchanged after launch (binary or equivalent JSON content).
+NOT VERIFIED: Worn-headset two-handed magnification, head-facing comfort, actual
+hand targeting and subjective performance. The models are illustrative geometric
+mechanisms, not service-ready CAD or load/force simulations.
+
 BUILD 14 — OCTOBER 24, 2026
 PASS: 82 core tests and 8 JavaScript player-controller scenarios. New tests cover
 video-only/player continuity, guarded independent screen movement, position
