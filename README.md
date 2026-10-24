@@ -184,3 +184,10 @@ Removed the experimental spatial-event recognizer from the shared button style
 after a reported workspace-entry regression. Standard SwiftUI button input is
 restored. Watch pairing and **Test Watch Tap** remain available under Settings →
 Watch; automatic left-hand button feedback is temporarily disabled.
+
+## Build 18 — pairing keypad
+
+Settings → Watch now has a six-digit on-panel keypad, Clear and backspace. Enter
+the iPhone code and tap Pair iPhone; no system keyboard is needed. Pair stays
+disabled until six digits are entered and a phone is discovered. Automatic button
+haptics remains paused as documented for build 17.

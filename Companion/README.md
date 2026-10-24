@@ -1,5 +1,8 @@
 # Optional Apple Watch haptics
 
+**Build 18:** Use the on-panel digit keypad to enter the iPhone code; the system
+keyboard is no longer needed. Pair enables after six digits and phone discovery.
+
 **Build 17:** Automatic left-hand button pulses are temporarily disabled after a
 button-input regression. Pairing and **Test Watch Tap** remain available. The
 visionOS switch is now labeled **Connect Watch companion**. The original design

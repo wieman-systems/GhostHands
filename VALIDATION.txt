@@ -1,3 +1,15 @@
+BUILD 18 — OCTOBER 24, 2026
+FIX: Replaced immersive pairing TextField with a bounded six-digit button keypad,
+Clear and backspace. Native keyboard focus is no longer required. Pair stays
+disabled until six digits and a discovered phone are available. Compact layout
+retains the fixed settings panel width and height. Standard buttons have no
+experimental SpatialEventGesture hook.
+PASS: Release device and Debug simulator builds; strict signed ZIP verification
+before and after extraction. Core logic unchanged from prior test run.
+PASS: Keypad rendered in simulator. Build 18 installed and launched on headset;
+independent version query confirms 18. All 16 pre-update Documents files preserved.
+NOT VERIFIED: Worn-headset keypad targeting and Watch vibration.
+
 BUILD 17 — OCTOBER 24, 2026
 FIX: Removed LeftWatchFeedback / SpatialEventGesture from SquareButton, restoring
 its pre-build-16 gesture-free styling. The detector was installed even when Watch
