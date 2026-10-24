@@ -28,7 +28,7 @@ struct VideoReference:View {
                 if let segment=model.currentStep.segment {Text("\(segment.start.formatted(.number.precision(.fractionLength(1))))–\(segment.end.formatted(.number.precision(.fractionLength(1))))s").font(.caption.monospacedDigit())}
                 Link("YouTube",destination:URL(string:model.course.videoURL)!).buttonStyle(.plain).frame(width:75)
             }
-            Text(model.isAuthoring ? "Author mode: scrub freely, then mark Start and End in the editor." : "The video pauses after this action. Tap Play if YouTube asks. Voice during playback: “GhostHands, next.”").font(.caption).foregroundStyle(.secondary)
+            Text(model.isAuthoring ? "Author mode: scrub freely, then mark Start and End in the editor." : (model.currentStep.segment == nil ? "Reference video: play manually. This lesson uses its own 3D timeline." : "The video pauses after this action. Tap Play if YouTube asks. Voice during playback: “GhostHands, next.”")).font(.caption).foregroundStyle(.secondary)
         }.padding(24).frame(width:800,height:650).background(.black).foregroundStyle(.white).buttonStyle(SquareButton()).preferredColorScheme(.dark)
             .onAppear{model.videoOpened()}.onDisappear{model.videoClosed()}
             #if targetEnvironment(simulator)

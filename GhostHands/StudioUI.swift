@@ -66,7 +66,7 @@ struct HomeView: View {
             .alert("GhostHands",isPresented:Binding(get:{model.error != nil},set:{if !$0 {model.error=nil}})) { Button("OK") { model.error=nil } } message: { Text(model.error ?? "") }
             .task {
                 #if targetEnvironment(simulator)
-                if ["--spatial-preview","--avatar-preview","--move-preview","--setup-preview","--sync-preview","--repair-preview","--author-preview"].contains(where:{ProcessInfo.processInfo.arguments.contains($0)}),!model.previewConsumed {
+                if ["--spatial-preview","--avatar-preview","--move-preview","--setup-preview","--sync-preview","--repair-preview","--author-preview","--engine-preview"].contains(where:{ProcessInfo.processInfo.arguments.contains($0)}),!model.previewConsumed {
                     model.previewConsumed=true;model.automaticVideo=ProcessInfo.processInfo.arguments.contains("--video-preview") || ProcessInfo.processInfo.arguments.contains("--sync-preview")
                     let result=await open(id:"studio")
                     if case .opened=result {
@@ -76,6 +76,7 @@ struct HomeView: View {
                         model.setStep(9); model.seek(3.0)
                         if ProcessInfo.processInfo.arguments.contains("--sync-preview") {model.setStep(0)}
                         if ProcessInfo.processInfo.arguments.contains("--repair-preview") {model.chooseLesson(LessonCatalog.repair.id);model.setStep(3)}
+                        if ProcessInfo.processInfo.arguments.contains("--engine-preview") {model.chooseLesson(LessonCatalog.engine.id);model.setStep(2);model.seek(3)}
                         if ProcessInfo.processInfo.arguments.contains("--author-preview") {model.beginAuthoring(blank:false);openWindow(id:"author")}
                         if ProcessInfo.processInfo.arguments.contains("--avatar-preview") {
                             var fixture=IllustratedMotion.clip(step:2,side:LetterPaper.width)
@@ -121,7 +122,7 @@ struct LessonPanel: View {
                 VStack(alignment:.leading,spacing:6) {Text("FINISH SHAPE").font(.caption2.monospaced());PaperFinishDiagram(step:model.lesson).frame(height:110)}
             }
             } else {
-                VStack(spacing:10) {Image(systemName:"wrench.and.screwdriver").font(.system(size:38));Text(model.course.object).font(.caption);Text("MANUAL SPATIAL GUIDANCE").font(.caption2.monospaced())}.frame(maxWidth:.infinity).frame(height:130)
+                VStack(spacing:10) {Image(systemName:"wrench.and.screwdriver").font(.system(size:38));Text(model.course.object).font(.caption);Text(model.course.mechanicalModel == .engine ? "ANIMATED ENGINE CUTAWAY" : "MANUAL SPATIAL GUIDANCE").font(.caption2.monospaced())}.frame(maxWidth:.infinity).frame(height:130)
             }
             // Reserve a fixed reading area so the tabletop touch targets never move.
             ScrollView {
@@ -152,31 +153,42 @@ struct PlaybackControls: View {
     @Environment(\.dismissImmersiveSpace) private var dismiss
     @Environment(\.openWindow) private var open
     var body: some View {
-        DeskCard(title:"GHOSTHANDS / TRANSPORT") {
+        DeskCard(title:"GHOSTHANDS / PLAYBACK") {
             HStack {
-                Text(model.selected?.isIllustration == false ? "YOUR RECORDED TAKE" : "ILLUSTRATED HANDS").font(.caption.monospaced())
-                Spacer(); Text("\(model.elapsed,specifier:"%.1f") / \(model.progressDuration,specifier:"%.1f")s").font(.caption.monospacedDigit())
+                Text(model.sourceLabel).font(.caption).lineLimit(1)
+                Spacer();Text("\(model.elapsed,specifier:"%.1f") / \(model.progressDuration,specifier:"%.1f")s").font(.caption.monospacedDigit())
             }
-            Slider(value:Binding(get:{model.elapsed},set:{model.seek($0)}),in:0...max(model.progressDuration,0.01)).disabled(model.selected==nil || model.busyRecording).accessibilityLabel("Playback position")
-            HStack {
-                Button {model.seek(0)} label:{Image(systemName:"backward.end.fill")}.disabled(model.busyRecording)
-                Button(model.mode == .playing ? "PAUSE" : "PLAY",systemImage:model.mode == .playing ? "pause.fill" : "play.fill") {model.playPause()}.buttonStyle(SquareButton(selected:true)).disabled(!model.placed || model.busyRecording)
-                Spacer()
-                Button(model.loops ? "LOOP ON" : "LOOP OFF") {model.toggleLoop()}
+            Slider(value:Binding(get:{model.elapsed},set:{model.seek($0)}),in:0...max(model.progressDuration,0.01))
+                .disabled(model.busyRecording).accessibilityLabel("Playback position")
+            HStack(spacing:10) {
+                Button(model.mode == .playing ? "PAUSE" : "PLAY",systemImage:model.mode == .playing ? "pause.fill" : "play.fill") {model.playPause()}
+                    .buttonStyle(SquareButton(selected:true)).disabled(!model.placed || model.busyRecording)
+                Menu {
+                    ForEach([0.25,0.5,0.75,1,1.5,2.0],id:\.self) {speed in
+                        Button {model.changeSpeed(speed)} label:{Label("\(speed.formatted())×",systemImage:model.speed==speed ? "checkmark" : "speedometer")}
+                    }
+                } label:{Label("\(model.speed.formatted())×",systemImage:"chevron.down")}.disabled(model.busyRecording)
+                Menu {
+                    Button("Show that again",systemImage:"arrow.counterclockwise") {model.replayCurrent()}.disabled(model.busyRecording)
+                    Button(model.loops ? "Turn looping off" : "Loop this action",systemImage:"repeat") {model.toggleLoop()}.disabled(model.busyRecording)
+                    Button("Show start") {model.seek(0)}.disabled(model.busyRecording)
+                    Button("Show finish") {model.seek(model.progressDuration)}.disabled(model.busyRecording)
+                    Button("Open reference video",systemImage:"play.rectangle") {open(id:"video")}
+                    Divider()
+                    Button("Home",systemImage:"house") {
+                        guard !model.transitioning else{return};model.transitioning=true
+                        Task {open(id:"home");await dismiss();model.transitioning=false}
+                    }.disabled(model.transitioning)
+                } label:{Label("MORE",systemImage:"chevron.down")}
             }
-            HStack(spacing:6) {
-                ForEach([0.25,0.5,0.75,1,1.5,2.0],id:\.self) { speed in
-                    Button("\(speed.formatted())×") {model.changeSpeed(speed)}.buttonStyle(SquareButton(selected:model.speed==speed))
+            if model.course.mechanicalModel == .engine {
+                HStack {
+                    Menu {
+                        Button("All parts") {model.engineFocus=nil}
+                        ForEach(EnginePart.allCases) {part in Button(part.title) {model.engineFocus=part}}
+                    } label:{Label(model.engineFocus?.title ?? "EXPLORE ENGINE PARTS",systemImage:"chevron.down")}
+                    Text(model.engineFocus?.detail ?? "Tap a 3D part to highlight it.").font(.caption).frame(maxWidth:.infinity)
                 }
-            }.disabled(model.busyRecording)
-            Button("REPLAY CURRENT DEMO") {model.replayCurrent()}.disabled(!model.placed || model.busyRecording)
-            HStack {
-                Text(model.sourceLabel).font(.system(size:11)).foregroundStyle(.secondary)
-                Spacer()
-                Button("HOME") {
-                    guard !model.transitioning else {return};model.transitioning=true
-                    Task {open(id:"home");await dismiss();model.transitioning=false}
-                }.disabled(model.transitioning)
             }
         }.frame(width:570)
     }
@@ -249,7 +261,7 @@ struct PlacementPanel: View {
     var body: some View {
         VStack(spacing:16) {
             Text("Fit your workspace").font(.title2.bold())
-            Text("Tap Reposition to reveal arrows around the paper. Each tap moves it 1 cm; height arrows move it 2 mm.").multilineTextAlignment(.center)
+            Text("Tap Reposition to reveal arrows around the workspace. Each tap moves it 1 cm; height arrows move it 2 mm.").multilineTextAlignment(.center)
             Button(model.adjustingPlacement ? "DONE MOVING" : "REPOSITION") {
                 if model.adjustingPlacement {model.adjustingPlacement=false} else {model.beginAdjustment()}
             }.buttonStyle(SquareButton(selected:true))
@@ -275,7 +287,9 @@ struct SettingsPanel: View {
             Text("Next · Back · Slow down · Show that again · Pause · Read instructions. During video, start with “GhostHands.”").font(.caption)
             if !voice.lastCommand.isEmpty {Text("Heard: \(voice.lastCommand)").font(.caption)}
             Button(model.narrationEnabled ? "READ INSTRUCTIONS / ON" : "READ INSTRUCTIONS / OFF") {model.narrationEnabled.toggle();model.narrationRevision += 1}
-            Button(model.syncVideo ? "VIDEO SYNC / ON" : "VIDEO SYNC / OFF") {model.syncVideo.toggle();if model.syncVideo {model.sendVideo(seek:true,play:model.mode == .playing)}}
+            if model.currentStep.segment != nil {
+                Button(model.syncVideo ? "VIDEO SYNC / ON" : "VIDEO SYNC / OFF") {model.syncVideo.toggle();if model.syncVideo {model.sendVideo(seek:true,play:model.mode == .playing)}}
+            }
             Text("Read-aloud waits until video audio stops.").font(.caption)
             Button(model.avatarEnabled ? "HUMAN REPLAY / ON" : "HUMAN REPLAY / OFF") {model.avatarEnabled.toggle()}.buttonStyle(SquareButton(selected:model.avatarEnabled))
             Text(model.avatarStatus).font(.caption).foregroundStyle(.secondary)
@@ -285,7 +299,7 @@ struct SettingsPanel: View {
                 Slider(value:Binding(get:{Double(model.avatarTableHeight)},set:{model.avatarTableHeight=Float($0)}),in:0.6...1.0)
             }
             Button(model.showHands ? "GHOST HANDS / ON" : "GHOST HANDS / OFF") {model.showHands.toggle()}
-            Button(model.showGuides ? "PAPER MODEL / ON" : "PAPER MODEL / OFF") {model.showGuides.toggle()}
+            Button(model.showGuides ? "GUIDE MODEL / ON" : "GUIDE MODEL / OFF") {model.showGuides.toggle()}
             Button("OPEN STEP VIDEO") {openWindow(id:"video")}
         }
     }

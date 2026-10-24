@@ -16,6 +16,7 @@ final class StudioScene {
     let panels = Entity()
     let moveControls = Entity()
     let paper = PaperVisual()
+    let mechanical = MechanicalVisual()
     let human = HumanReplay()
 
     func loadHands() async throws {
@@ -27,12 +28,13 @@ final class StudioScene {
     var guideKey = ""
     init() {
         root.addChild(guides);root.addChild(moveControls)
-        root.addChild(paper.root);root.addChild(human.root)
+        root.addChild(paper.root);root.addChild(human.root);root.addChild(mechanical.root)
         root.addChild(ghostLeft.root); root.addChild(ghostRight.root)
 
     }
     func render(model: StudioModel, frame: MotionFrame?, live: MotionFrame) {
         root.transform = Transform(matrix: model.workspace)
+        mechanical.update(model:model)
         let avatarFrame=model.busyRecording ? MotionFrame(time:live.time,left:live.left?.transformed(by:simd_inverse(model.workspace)),right:live.right?.transformed(by:simd_inverse(model.workspace))) : frame
         human.update(frame:avatarFrame,enabled:model.avatarEnabled && model.placed && (model.busyRecording || model.selected?.isIllustration == false),tableHeight:model.avatarTableHeight)
         moveControls.isEnabled=model.placed && model.adjustingPlacement
@@ -104,7 +106,7 @@ struct SpatialStudio: View {
     var body: some View {
         RealityView { content, attachments in
             content.add(scene.root); content.add(scene.panels)
-            for (id,position) in [("lesson",SIMD3<Float>(-0.30,0.002,0)),("transport",SIMD3<Float>(0,0.002,0.25)),("tools",SIMD3<Float>(0.30,0.002,0)),("tray",SIMD3<Float>(0,0.002,-0.28)),("cueLabel",SIMD3<Float>(0,0.002,0.13))] {
+            for (id,position) in [("lesson",SIMD3<Float>(-0.30,0.002,0)),("transport",SIMD3<Float>(0,0.002,-0.25)),("tools",SIMD3<Float>(0.30,0.002,0)),("tray",SIMD3<Float>(0,0.002,0.27)),("cueLabel",SIMD3<Float>(0,0.002,0.13))] {
                 if let panel=attachments.entity(for:id) {
                     panel.position=position;panel.scale=SIMD3(repeating:0.48)
                     panel.orientation=simd_quatf(angle:-Float.pi/2,axis:[1,0,0]);scene.panels.addChild(panel)
@@ -120,7 +122,7 @@ struct SpatialStudio: View {
             model.onRender = { [scene, model] frame, live, _ in scene.render(model:model,frame:frame,live:live) }
         } attachments: {
             Attachment(id:"tray") {PartsTray().opacity(model.course.trayLabels.isEmpty ? 0 : 1).allowsHitTesting(!model.course.trayLabels.isEmpty)}
-            Attachment(id:"cueLabel") {Text(model.spatialCue?.label ?? "Place a marker in Place").font(.caption).padding(10).background(.black).foregroundStyle(.white).opacity(model.isPaperLesson ? 0 : 1)}
+            Attachment(id:"cueLabel") {Text(model.spatialCue?.label ?? "Place a marker in Place").font(.caption).padding(10).background(.black).foregroundStyle(.white).opacity(model.isPaperLesson || model.spatialCue == nil ? 0 : 1).allowsHitTesting(false)}
             Attachment(id:"lesson") { LessonPanel() }
             Attachment(id:"transport") { PlaybackControls() }
             Attachment(id:"tools") { SpatialControls() }
@@ -132,6 +134,11 @@ struct SpatialStudio: View {
             Attachment(id:"moveDown") {PaperMoveControl(label:"− HEIGHT",delta:[0,-0.002,0])}
             Attachment(id:"moveDone") {PaperMoveFinish()}
         }
+        .gesture(SpatialTapGesture().targetedToAnyEntity().onEnded {value in
+            guard !model.busyRecording,!model.adjustingPlacement,model.course.mechanicalModel == .engine else{return}
+            let prefix="engine-part-",name=value.entity.name
+            if name.hasPrefix(prefix) {model.engineFocus=EnginePart(rawValue:String(name.dropFirst(prefix.count)))}
+        })
         .task {
             await model.entered()
             while !Task.isCancelled {
@@ -146,7 +153,7 @@ struct SpatialStudio: View {
             do {try await scene.human.load();if model.avatarEnabled {model.avatarStatus="Ready · record both hands for mirrored replay"}}
             catch {if !Task.isCancelled && model.avatarEnabled {model.avatarStatus="Could not load the human model. Try toggling it again."}}
         }
-        .onChange(of:model.placed) { _,placed in if placed {dismissWindow(id:"home");if model.automaticVideo {openWindow(id:"video")}} else if model.immersive {openWindow(id:"home")} }
+        .onChange(of:model.placed) { _,placed in if placed {dismissWindow(id:"home");if model.automaticVideo && model.currentStep.segment != nil {openWindow(id:"video")}} else if model.immersive {openWindow(id:"home")} }
         .onDisappear { model.leftStudio() }
         .onChange(of:phase) { _,phase in if phase != .active { model.suspend() } else { model.resumeInteraction() } }
     }

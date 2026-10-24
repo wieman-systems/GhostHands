@@ -1,3 +1,16 @@
+BUILD 9 — OCTOBER 24, 2026
+PASS: 49 core tests, including engine crank/rod/piston geometry, stroke and valve
+states, timeline pause/resume, independent reference video, recording model
+visibility and backward-compatible lesson decoding.
+PASS: 8 existing JavaScript player-controller scenarios.
+PASS: Release device and Debug simulator builds. Strict codesign verification.
+PASS: Rendered engine, filter housing and far-side compact playback panel.
+Review fixes: keep mechanical guides visible during recorded replay, separate
+engine/video controls, and park the removed filter cover clear of the element.
+NOT VERIFIED: Real hand targeting, dropdown interactions and reach on the table,
+voice recognition/audio or real-vehicle alignment. Models are teaching illustrations.
+INSTALLATION: Deferred; user will reconnect the headset later.
+
 BUILD 8 — OCTOBER 24, 2026
 PASS: 44 core tests, zero failures. Added lesson validation/persistence, custom
 markers, generic recording limits, rapid seek rejection, segment completion,

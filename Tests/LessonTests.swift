@@ -4,7 +4,7 @@ import XCTest
 final class LessonTests:XCTestCase {
     @MainActor func model()->StudioModel {StudioModel(storage:FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathComponent("Recordings"))}
     func testCatalogsMatchSourcesAndHaveOrderedValidSegments() {
-        for course in LessonCatalog.all {
+        for course in [LessonCatalog.boat,LessonCatalog.repair] {
             XCTAssertTrue(course.isValid)
             var end=0.0
             for step in course.steps {XCTAssertNotNil(step.segment);XCTAssertGreaterThanOrEqual(step.segment!.start,end);end=step.segment!.end}

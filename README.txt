@@ -1,3 +1,4 @@
-GHOSTHANDS BUILD 8
-See README.md for setup, voice commands, video sync, lesson authoring and validation.
-Signed build is ready. Installation deferred until the headset reconnects.
+GHOSTHANDS BUILD 9
+See README.md for setup and controls. Playback is on the far side of the paper,
+with speed and More dropdowns. Lessons includes the engine cutaway and filter repair.
+Installation is deferred until the headset reconnects.

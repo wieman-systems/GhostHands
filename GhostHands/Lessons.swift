@@ -27,6 +27,8 @@ struct LessonStep: Codable, Identifiable, Equatable {
     var reassembly: Bool = false
     var recordingID: UUID?
 }
+enum MechanicalModel:String,Codable {case engine,cabinFilter}
+
 struct LessonDefinition: Codable, Identifiable, Equatable {
     var version = 1
     var id: String
@@ -41,6 +43,7 @@ struct LessonDefinition: Codable, Identifiable, Equatable {
     var spatialNote: String
     var trayLabels: [String]
     var steps: [LessonStep]
+    var mechanicalModel:MechanicalModel?
     var isValid:Bool {
         version==1 && !id.isEmpty && id.range(of:"^[A-Za-z0-9_-]{1,100}$",options:.regularExpression) != nil && !title.isEmpty && title.count <= 200 && steps.count>0 && steps.count<=100 && Set(steps.map(\.id)).count==steps.count && trayLabels.count<=4 && YouTubeLink(videoURL) != nil && steps.allSatisfy {
             !$0.title.isEmpty && !$0.instruction.isEmpty && $0.title.count<=200 && $0.instruction.count<=4000 && $0.check.count<=1000 && ($0.segment?.isValid ?? true) && ($0.paperIndex.map{PaperStep.all.indices.contains($0)} ?? true) && ($0.cue?.isValid ?? true) && ($0.traySlot.map{trayLabels.indices.contains($0)} ?? true)
@@ -76,9 +79,19 @@ enum LessonCatalog {
             s("raise","Raise the glove box","Lift the glove box and gently clear its side stops back into their normal position.","Both side stops are engaged.",41,46,"Side stops",[0.06,0.02,0],[0.10,0.02,0],nil,true),
             s("reattach","Reconnect the damper","Reconnect the damper arm to its peg while supporting the glove box.","The damper connection is secure.",46,50,"Damper peg",[0.14,0.03,0],[0.10,0.03,0],nil,true),
             s("check","Check and close","Open and close the glove box gently. Confirm its movement and latch, and account for the removed cover and old filter.","The glove box closes normally; no loose parts remain.",50,53,"Close glove box",[0,0.03,0.12],[0,0.03,0],nil,true)
-        ])
+        ],mechanicalModel:.cabinFilter)
     }()
-    static var all:[LessonDefinition] {[boat,repair]}
+    static let engine:LessonDefinition = {
+        func s(_ id:String,_ title:String,_ instruction:String,_ check:String)->LessonStep {.init(id:id,title:title,instruction:instruction,check:check)}
+        return .init(id:"four-stroke-engine",title:"Inside a car engine",category:"Automotive",object:"Spark-ignition engine · teaching cutaway",preparation:"Explore a tabletop cutaway of one cylinder. Tap a part to highlight it, then use Next to study each stroke. This model teaches the cycle; it is not a vehicle-specific disassembly guide.",tools:["No tools — virtual engine"],videoURL:"https://www.youtube.com/watch?v=kMCfZL9HgSk",attribution:"4-stroke reference · Briggs & Stratton",sourceURL:"https://www.briggsandstratton.com/en-us/support/videos/4-stroke-theory",spatialNote:"Simplified overhead-valve teaching model. Valve timing and combustion are illustrative. The reference video plays separately; no unverified timestamps are used.",trayLabels:[],steps:[
+            s("parts","Meet the engine parts","Tap the piston, connecting rod, crankshaft, inlet valve, exhaust valve, or spark plug. Watch how the rod links the piston's motion to crankshaft rotation.","Find the piston and follow its rod down to the crankshaft."),
+            s("intake","1 / Intake","The piston travels down while the inlet valve opens. The dots show incoming charge entering the cylinder.","The inlet valve is open; the piston moves down."),
+            s("compression","2 / Compression","Both valves close. The piston rises and compresses the charge above it.","The piston approaches the cylinder head with both valves closed."),
+            s("power","3 / Power","A spark begins combustion near the top. Expanding gas pushes the piston down; the connecting rod transfers this force to the crankshaft.","The spark flashes, then the piston descends with both valves closed."),
+            s("exhaust","4 / Exhaust","The exhaust valve opens. The rising piston pushes spent gas out. Four strokes complete one cycle over two crankshaft revolutions.","Exhaust exits as the piston rises; Replay repeats this stroke.")
+        ],mechanicalModel:.engine)
+    }()
+    static var all:[LessonDefinition] {[boat,repair,engine]}
 }
 
 enum LessonStorage {

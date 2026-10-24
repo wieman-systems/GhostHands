@@ -27,6 +27,7 @@ final class StudioModel {
     var cuePlacement: String?
     var cueOverrides: [String:SpatialCue] = [:]
     var trayContents: Set<Int> = []
+    var engineFocus:EnginePart?
     private var cueCalibration = TableCalibration()
     private var cueApproach: SIMD3<Float>?
     private var cueApproached = false
@@ -100,7 +101,7 @@ final class StudioModel {
     var instructionToRead:String {"Step \(step+1). \(currentStep.title). \(currentStep.instruction). \(currentStep.check)"}
     var progressDuration:Double {selected?.duration ?? currentStep.segment?.duration ?? 8}
 
-    var sourceLabel: String { selected?.isIllustration == false ? "Recorded hands" : isPaperLesson ? "Illustrated motion · not a recording" : "Manually placed spatial cues" }
+    var sourceLabel: String { selected?.isIllustration == false ? "Recorded hands" : isPaperLesson ? "Illustrated motion · not a recording" : course.mechanicalModel == .engine ? "Engine cutaway · illustrative" : course.mechanicalModel == .cabinFilter ? "Manual cues + filter model" : "Manually placed spatial cues" }
 
     func entered() async {
         immersive = true; interactionActive = true; previousTick = 0; placed = false
@@ -155,23 +156,25 @@ final class StudioModel {
         if selected == nil,let paper=currentStep.paperIndex {selected=IllustratedMotion.clip(step:paper,side:paperSide)}
         elapsed = currentStep.staticPaper ? progressDuration : 0; previousTick = 0
         mode = immersive && placed && !isAuthoring ? .playing : .paused
-        sendVideo(seek:true,play:mode == .playing,time:isAuthoring ? (currentStep.segment?.start ?? video.currentTime) : nil)
+        if isAuthoring || currentStep.segment != nil || video.command?.videoID != YouTubeLink(course.videoURL)?.videoID {
+            sendVideo(seek:true,play:mode == .playing,time:isAuthoring ? (currentStep.segment?.start ?? video.currentTime) : nil)
+        }
         narrationRevision += 1
     }
     func chooseLesson(_ id:String) {
         guard !busyRecording,!hasUnsaved,lessons.contains(where:{$0.id==id}) else{return}
-        isAuthoring=false;draft=nil;activeLessonID=id;trayContents=[];setStep(0);tab = .lessons
+        pauseVideo();isAuthoring=false;draft=nil;activeLessonID=id;trayContents=[];engineFocus=nil;setStep(0);tab = .lessons
     }
     func sendVideo(seek:Bool,play:Bool,time:Double?=nil) {
         guard let link=YouTubeLink(course.videoURL) else{return}
-        video.request(videoID:link.videoID,segment:isAuthoring ? nil : currentStep.segment,time:time,seek:seek,play:play,rate:speed,loop:loops && !isAuthoring)
+        video.request(videoID:link.videoID,segment:isAuthoring ? nil : currentStep.segment,time:time,seek:seek,play:play && (isAuthoring || currentStep.segment != nil),rate:speed,loop:loops && !isAuthoring)
     }
     func pauseVideo() {if video.visible {sendVideo(seek:false,play:false)}}
     func videoOpened() {video.visible=true;sendVideo(seek:true,play:immersive && placed && !isAuthoring && !busyRecording)}
     func retryVideo() {video.failed=false;video.ready=false;video.playerGeneration += 1;videoOpened()}
-    func videoClosed() {video.close();mode = .paused;narrationRevision += 1}
-    func changeSpeed(_ value:Double) {speed=min(2,max(0.25,value));if video.visible {sendVideo(seek:false,play:video.playing)}}
-    func toggleLoop() {loops.toggle();if video.visible {sendVideo(seek:false,play:video.playing)}}
+    func videoClosed() {let wasLinked=linkedVideo;video.close();if wasLinked {mode = .paused};narrationRevision += 1}
+    func changeSpeed(_ value:Double) {speed=min(2,max(0.25,value));if linkedVideo {sendVideo(seek:false,play:video.playing)}}
+    func toggleLoop() {loops.toggle();if linkedVideo {sendVideo(seek:false,play:video.playing)}}
     func acceptVideo(serial:Int,id:String,time:Double,duration:Double,state:Int,rate:Double,ended:Bool) {
         guard video.receive(serial:serial,videoID:id,time:time,duration:duration,state:state,rate:rate) else{return}
         guard immersive,placed,interactionActive,linkedVideo,let segment=currentStep.segment else{return}
@@ -199,21 +202,21 @@ final class StudioModel {
         if clip.lessonID == "letter-boat-guided-v3", let oldStep = clip.lessonStep {
             activeLessonID=LessonCatalog.boat.id;self.step=LessonCatalog.boat.steps.firstIndex{$0.id=="boat-\(oldStep)"} ?? 0
         } else if let id=clip.lessonID,lessons.contains(where:{$0.id==id}) {activeLessonID=id;self.step=min(clip.lessonStep ?? 0,stepCount-1)}
-        showGuides = isPaperLesson
-        mode = immersive && placed ? .playing : .paused; previousTick = 0; tab = .learn;sendVideo(seek:true,play:mode == .playing)
+        showGuides = isPaperLesson || course.mechanicalModel != nil || spatialCue != nil
+        mode = immersive && placed ? .playing : .paused; previousTick = 0; tab = .learn;if currentStep.segment != nil {sendVideo(seek:true,play:mode == .playing)}
     }
     func playPause() {
         guard immersive, placed, !busyRecording else { return }
-        if mode == .playing || video.playing { mode = .paused; pauseVideo();return }
-        if selected == nil { setStep(step) }
-        if elapsed >= progressDuration { elapsed = 0;if video.visible {sendVideo(seek:true,play:true);mode = .playing;return} }
+        if mode == .playing || (linkedVideo && video.playing) { mode = .paused;if linkedVideo {pauseVideo()};return }
+        if selected == nil && currentStep.paperIndex != nil { setStep(step) }
+        if elapsed >= progressDuration { elapsed = 0;if linkedVideo {sendVideo(seek:true,play:true);mode = .playing;return} }
         mode = .playing
-        if video.visible {sendVideo(seek:false,play:true)}
+        if linkedVideo {sendVideo(seek:false,play:true)}
     }
     func resumeInteraction() { interactionActive=true;previousTick=0;calibration.reset() }
     func replayCurrent() {
         guard immersive,placed,!busyRecording else{return}
-        elapsed=currentStep.staticPaper ? progressDuration : 0;previousTick=0;mode = .playing;sendVideo(seek:true,play:true)
+        elapsed=currentStep.staticPaper ? progressDuration : 0;previousTick=0;mode = .playing;if currentStep.segment != nil {sendVideo(seek:true,play:true)}
     }
     func seek(_ value: Double) {
         guard !busyRecording else { return }
@@ -277,7 +280,7 @@ final class StudioModel {
         guard !busyRecording,!hasUnsaved else{return}
         pauseVideo();mode = .paused
         var copy=exportLesson;copy.id="lesson-"+UUID().uuidString.lowercased();copy.title=blank ? "My lesson" : course.title+" · My edition"
-        if blank {copy.category="Custom";copy.object="My object";copy.preparation="Clear your workspace and gather the tools.";copy.tools=[];copy.spatialNote="Manually authored guidance.";copy.trayLabels=["Part 1","Part 2","Part 3","Part 4"];copy.steps=[.init(title:"First action",instruction:"Describe the action to perform.",check:"Describe the finished result.",cue:.init(label:"Target",from:[0,0.01,0],to:[0,0.08,0]))]}
+        if blank {copy.mechanicalModel=nil;copy.category="Custom";copy.object="My object";copy.preparation="Clear your workspace and gather the tools.";copy.tools=[];copy.spatialNote="Manually authored guidance.";copy.trayLabels=["Part 1","Part 2","Part 3","Part 4"];copy.steps=[.init(title:"First action",instruction:"Describe the action to perform.",check:"Describe the finished result.",cue:.init(label:"Target",from:[0,0.01,0],to:[0,0.08,0]))]}
         draft=copy;isAuthoring=true;step=0;selected=nil;sendVideo(seek:true,play:false)
     }
     var exportLesson:LessonDefinition {
@@ -350,11 +353,11 @@ final class StudioModel {
                 lastCapture = now
                 if elapsed >= secondsToRecord { finishRecording() }
             }
-        } else if mode == .playing, !linkedVideo, let selected {
+        } else if mode == .playing, !linkedVideo {
             elapsed += dt * speed
-            if elapsed >= selected.duration {
-                if loops, selected.duration > 0 { elapsed.formTruncatingRemainder(dividingBy: selected.duration) }
-                else { elapsed = selected.duration; mode = .paused }
+            if elapsed >= progressDuration {
+                if loops, progressDuration > 0 { elapsed.formTruncatingRemainder(dividingBy: progressDuration) }
+                else { elapsed = progressDuration; mode = .paused }
             }
         }
         let frame = busyRecording || currentStep.staticPaper ? nil : selected?.sample(at: elapsed)
