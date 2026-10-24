@@ -3,12 +3,18 @@ import Speech
 import AVFoundation
 import Observation
 
-@MainActor @Observable final class VoiceCoach:NSObject,AVSpeechSynthesizerDelegate {
+@MainActor @Observable final class VoiceCoach:NSObject,AVSpeechSynthesizerDelegate,AVAudioPlayerDelegate {
     var listening=false
     var status="Voice off"
     var lastCommand=""
     private let engine=AVAudioEngine()
     private let speaker=AVSpeechSynthesizer()
+    private var player:AVAudioPlayer?
+    private var activeUtterance:AVSpeechUtterance?
+    var narratorName="Studio voice · AI-generated"
+    private var pendingManual=false
+    private var pendingStepKey=""
+    private var seenManual=0
     private let recognizer=SFSpeechRecognizer(locale:Locale(identifier:"en-US"))
     private var request:SFSpeechAudioBufferRecognitionRequest?
     private var recognition:SFSpeechRecognitionTask?
@@ -26,24 +32,40 @@ import Observation
     private weak var model:StudioModel?
     override init(){super.init();speaker.delegate=self}
     func run(_ model:StudioModel) async {
-        self.model=model;seenNarration = -1
+        self.model=model;seenNarration = -1;seenManual=model.manualNarrationRevision
         while !Task.isCancelled {
             let active=model.immersive && model.interactionActive && model.placed && !model.busyRecording && !model.isAuthoring
             if !active {pendingNarration=nil;stopSpeaking();if listening {stopListening()}}
             else {
-                if seenNarration != model.narrationRevision {seenNarration=model.narrationRevision;pendingNarration=model.narrationEnabled ? model.instructionToRead : nil;stopSpeaking();quietSince=Date()}
-                if !model.narrationEnabled {pendingNarration=nil;stopSpeaking()}
+                if seenNarration != model.narrationRevision {seenNarration=model.narrationRevision;if !pendingManual || pendingStepKey != model.cueKey {pendingManual=false;pendingStepKey=model.cueKey;pendingNarration=model.automaticNarrationAllowed ? model.instructionToRead : nil;stopSpeaking();quietSince=Date()}}
+                if seenManual != model.manualNarrationRevision {seenManual=model.manualNarrationRevision;pendingManual=true;pendingStepKey=model.cueKey;pendingNarration=model.instructionToRead;stopSpeaking();quietSince=Date()}
+                if !model.automaticNarrationAllowed && !pendingManual {pendingNarration=nil;stopSpeaking()}
                 if model.video.audioBusy {stopSpeaking();quietSince=Date()}
-                else if let text=pendingNarration,model.narrationEnabled,!speaking,Date().timeIntervalSince(quietSince)>0.8 {
+                else if let text=pendingNarration,(model.automaticNarrationAllowed || pendingManual),!speaking,Date().timeIntervalSince(quietSince)>0.8 {
                     pendingNarration=nil;speaking=true
-                    let utterance=AVSpeechUtterance(string:text);utterance.voice=AVSpeechSynthesisVoice(language:"en-US");utterance.rate=0.48
-                    speaker.speak(utterance)
+                    speak(text,natural:model.naturalNarration)
                 }
             }
             try? await Task.sleep(for:.milliseconds(100))
         }
         stopListening();stopSpeaking();pendingNarration=nil;self.model=nil
     }
+    private func speak(_ text:String,natural:Bool) {
+        if natural,let url=Bundle.main.url(forResource:NarrationPolicy.assetName(for:text),withExtension:"mp3",subdirectory:"NarrationResources"),let audio=try? AVAudioPlayer(contentsOf:url) {
+            player=audio;audio.delegate=self;audio.prepareToPlay()
+            if audio.play() {narratorName="Studio voice · AI-generated";return}
+            player=nil
+        }
+        let available=AVSpeechSynthesisVoice.speechVoices().filter{$0.language=="en-US"}.sorted{$0.quality.rawValue>$1.quality.rawValue}
+        let utterance=AVSpeechUtterance(string:text);utterance.voice=available.first ?? AVSpeechSynthesisVoice(language:"en-US")
+        utterance.rate=0.47;utterance.pitchMultiplier=1;utterance.postUtteranceDelay=0.15
+        narratorName=(utterance.voice?.name ?? "System voice")+" · device voice";activeUtterance=utterance;speaker.speak(utterance)
+    }
+    func cancelNarration() {pendingNarration=nil;pendingManual=false;stopSpeaking()}
+    nonisolated func audioPlayerDidFinishPlaying(_ player:AVAudioPlayer,successfully flag:Bool) {Task{@MainActor in
+        guard self.player === player else{return};self.player=nil;self.speaking=false;self.pendingManual=false;self.recognitionAfter=Date().addingTimeInterval(0.7)
+        if self.listening {self.scheduleRestart(ticket:self.generation)}
+    }}
     func toggle() {if listening {stopListening()} else {Task{await startListening()}}}
     private func startListening() async {
         guard model?.immersive==true,model?.placed==true,model?.busyRecording==false else{status="Place the workspace before enabling voice.";return}
@@ -102,8 +124,8 @@ import Observation
         engine.stop();if hasTap {engine.inputNode.removeTap(onBus:0);hasTap=false}
         request?.endAudio();recognition?.cancel();recognition=nil;request=nil;latestText="";status="Voice off"
     }
-    private func stopSpeaking(){if speaker.isSpeaking {speaker.stopSpeaking(at:.immediate)};speaking=false}
-    nonisolated func speechSynthesizer(_ synthesizer:AVSpeechSynthesizer,didFinish utterance:AVSpeechUtterance){Task{@MainActor in self.speaking=false;self.quietSince=Date();self.recognitionAfter=Date().addingTimeInterval(0.7);if self.listening {self.scheduleRestart(ticket:self.generation)}}}
-    nonisolated func speechSynthesizer(_ synthesizer:AVSpeechSynthesizer,didCancel utterance:AVSpeechUtterance){Task{@MainActor in self.speaking=false;self.quietSince=Date();self.recognitionAfter=Date().addingTimeInterval(0.7)}}
+    private func stopSpeaking(){player?.stop();player=nil;activeUtterance=nil;if speaker.isSpeaking {speaker.stopSpeaking(at:.immediate)};speaking=false}
+    nonisolated func speechSynthesizer(_ synthesizer:AVSpeechSynthesizer,didFinish utterance:AVSpeechUtterance){Task{@MainActor in guard self.activeUtterance === utterance else{return};self.activeUtterance=nil;self.pendingManual=false;self.speaking=false;self.quietSince=Date();self.recognitionAfter=Date().addingTimeInterval(0.7);if self.listening {self.scheduleRestart(ticket:self.generation)}}}
+    nonisolated func speechSynthesizer(_ synthesizer:AVSpeechSynthesizer,didCancel utterance:AVSpeechUtterance){Task{@MainActor in guard self.activeUtterance === utterance else{return};self.activeUtterance=nil;self.pendingManual=false;self.speaking=false;self.quietSince=Date();self.recognitionAfter=Date().addingTimeInterval(0.7)}}
     enum VoiceError:Error {case noInput}
 }

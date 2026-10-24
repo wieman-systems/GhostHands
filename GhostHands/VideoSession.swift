@@ -37,6 +37,7 @@ struct VideoCommand: Codable, Equatable {
     @discardableResult func receive(serial:Int,videoID:String,time:Double,duration:Double,state:Int,rate:Double)->Bool {
         guard let command,serial==command.serial,videoID==command.videoID,time.isFinite,duration.isFinite,time>=0 else{return false}
         acknowledgedSerial=serial;currentTime=time;self.duration=duration;actualRate=rate.isFinite ? rate : 1;lastUpdate=Date()
+        if state==1 || state==2 {failed=false;ready=true}
         playing=state==1;buffering=state==3;waiting=false
         status=playing ? "Video and guide linked" : buffering ? "Buffering…" : "Paused · take your time"
         return true

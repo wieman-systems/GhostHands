@@ -1,3 +1,23 @@
+BUILD 10 — OCTOBER 24, 2026
+PASS: 57 core tests and 8 JavaScript player scenarios. New checks cover lab
+lesson validity, gear ratio/flow, narration policy/preferences, asset coverage,
+video ownership, inspection input guards and recovery after a transient error.
+PASS: Release device and Debug simulator builds. Strict codesign verification
+of the original build and ZIP extracted outside iCloud. iCloud adds FinderInfo
+to unpacked .app folders; use Builds/GhostHands-Build10.zip for a clean archive.
+PASS: All 45 bundled narration MP3 files decoded; hashes match original text.
+PASS: Simulator jet cutaway and compact Audio panel visually inspected.
+PASS: Final live docked YouTube probe: initial 20.236s, Next 123s, pause 134s,
+Replay 123.141s. Video rendered directly above the paper's far edge.
+PASS: Physical build 10 installed, launched, and independently version-checked.
+Documents/Library backed up before update; all 11 existing Documents files
+hash-identical afterward. Source, installed binary and ZIP use final code.
+Review fixes: exclusive player ownership and generation guards, preserve manual
+read requests, failed-player fallback/recovery, unsupported inspection controls.
+NOT VERIFIED: Worn-headset video comfort, menu reach, hand targeting, microphone
+recognition and perceived narration quality. Labs are illustrative teaching
+models, not engineering simulation or actual maintenance procedures.
+
 BUILD 9 — OCTOBER 24, 2026
 PASS: 49 core tests, including engine crank/rod/piston geometry, stroke and valve
 states, timeline pause/resume, independent reference video, recording model
@@ -9,7 +29,7 @@ Review fixes: keep mechanical guides visible during recorded replay, separate
 engine/video controls, and park the removed filter cover clear of the element.
 NOT VERIFIED: Real hand targeting, dropdown interactions and reach on the table,
 voice recognition/audio or real-vehicle alignment. Models are teaching illustrations.
-INSTALLATION: Deferred; user will reconnect the headset later.
+INSTALLATION: Subsequently installed and launched; 10 existing Documents files preserved.
 
 BUILD 8 — OCTOBER 24, 2026
 PASS: 44 core tests, zero failures. Added lesson validation/persistence, custom

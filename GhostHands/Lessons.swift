@@ -27,7 +27,7 @@ struct LessonStep: Codable, Identifiable, Equatable {
     var reassembly: Bool = false
     var recordingID: UUID?
 }
-enum MechanicalModel:String,Codable {case engine,cabinFilter}
+enum MechanicalModel:String,Codable {case engine,cabinFilter,jet,gearbox}
 
 struct LessonDefinition: Codable, Identifiable, Equatable {
     var version = 1
@@ -44,8 +44,9 @@ struct LessonDefinition: Codable, Identifiable, Equatable {
     var trayLabels: [String]
     var steps: [LessonStep]
     var mechanicalModel:MechanicalModel?
+    var hasVideo:Bool {YouTubeLink(videoURL) != nil}
     var isValid:Bool {
-        version==1 && !id.isEmpty && id.range(of:"^[A-Za-z0-9_-]{1,100}$",options:.regularExpression) != nil && !title.isEmpty && title.count <= 200 && steps.count>0 && steps.count<=100 && Set(steps.map(\.id)).count==steps.count && trayLabels.count<=4 && YouTubeLink(videoURL) != nil && steps.allSatisfy {
+        version==1 && !id.isEmpty && id.range(of:"^[A-Za-z0-9_-]{1,100}$",options:.regularExpression) != nil && !title.isEmpty && title.count <= 200 && steps.count>0 && steps.count<=100 && Set(steps.map(\.id)).count==steps.count && trayLabels.count<=4 && (hasVideo || (videoURL.isEmpty && steps.allSatisfy{$0.segment==nil})) && steps.allSatisfy {
             !$0.title.isEmpty && !$0.instruction.isEmpty && $0.title.count<=200 && $0.instruction.count<=4000 && $0.check.count<=1000 && ($0.segment?.isValid ?? true) && ($0.paperIndex.map{PaperStep.all.indices.contains($0)} ?? true) && ($0.cue?.isValid ?? true) && ($0.traySlot.map{trayLabels.indices.contains($0)} ?? true)
         }
     }
@@ -91,7 +92,7 @@ enum LessonCatalog {
             s("exhaust","4 / Exhaust","The exhaust valve opens. The rising piston pushes spent gas out. Four strokes complete one cycle over two crankshaft revolutions.","Exhaust exits as the piston rises; Replay repeats this stroke.")
         ],mechanicalModel:.engine)
     }()
-    static var all:[LessonDefinition] {[boat,repair,engine]}
+    static var all:[LessonDefinition] {[boat,repair,engine,jet,gearbox]}
 }
 
 enum LessonStorage {

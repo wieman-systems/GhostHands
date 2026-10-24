@@ -28,7 +28,7 @@ struct LessonAuthorView:View {
                         HStack {TextField("YouTube link",text:$link).textInputAutocapitalization(.never).autocorrectionDisabled();Button("LOAD LINK") {
                             guard YouTubeLink(link) != nil else{model.error="Enter a valid YouTube link.";return}
                             if model.draft?.videoURL != link {model.draft?.videoURL=link;for i in model.draft!.steps.indices {model.draft!.steps[i].segment=nil}}
-                            model.sendVideo(seek:true,play:false);open(id:"video")
+                            model.sendVideo(seek:true,play:false);model.dockedVideo=false;open(id:"video")
                         }.frame(width:150)}
                         HStack {
                             Button("PREVIOUS") {model.setStep(model.step-1)}.disabled(model.step==0)
@@ -66,7 +66,7 @@ struct LessonAuthorView:View {
                     }.textFieldStyle(AuthorFieldStyle()).padding(2)
                 }.frame(height:545)
                 HStack {
-                    Button("OPEN VIDEO") {open(id:"video")}
+                    Button("OPEN VIDEO") {model.dockedVideo=false;open(id:"video")}
                     Button("EXPORT JSON") {exporting=true}.disabled(!model.course.isValid)
                     Button("SAVE + USE LESSON") {model.saveDraft();if !model.isAuthoring {dismiss(id:"author")}}.buttonStyle(SquareButton(selected:true)).disabled(model.busyRecording)
                 }
@@ -84,14 +84,16 @@ struct LessonLibraryPanel:View {
     @State private var importing=false
     var body:some View {
         VStack(alignment:.leading,spacing:12) {
-            ForEach(model.lessons) {lesson in
-                Button {model.chooseLesson(lesson.id)} label:{VStack(alignment:.leading){Text(lesson.title).font(.headline);Text(lesson.object).font(.caption)}}.buttonStyle(SquareButton(selected:model.course.id==lesson.id))
-            }
-            Text(model.course.preparation).font(.caption)
-            Text("Tools: "+model.course.tools.joined(separator:", ")).font(.caption)
+            Menu {
+                ForEach(model.lessons) {lesson in Button(lesson.title) {model.chooseLesson(lesson.id)}}
+            } label:{Label(model.course.title,systemImage:"chevron.down").lineLimit(1)}
+            Text(model.course.category.uppercased()).font(.caption.monospaced()).foregroundStyle(.secondary)
+            Text(model.course.object).font(.headline).lineLimit(2)
+            Text(model.course.preparation).font(.system(size:14)).lineLimit(6).frame(height:120,alignment:.topLeading)
+            Text("Tools: "+model.course.tools.joined(separator:", ")).font(.caption).lineLimit(2)
             HStack {
-                Button("NEW LESSON") {model.beginAuthoring(blank:true);open(id:"author");open(id:"video")}
-                Button("EDIT A COPY") {model.beginAuthoring(blank:false);open(id:"author");open(id:"video")}
+                Button("NEW LESSON") {model.beginAuthoring(blank:true);model.dockedVideo=false;open(id:"author");if model.course.hasVideo {model.dockedVideo=false;open(id:"video")}}
+                Button("EDIT A COPY") {model.beginAuthoring(blank:false);model.dockedVideo=false;open(id:"author");if model.course.hasVideo {model.dockedVideo=false;open(id:"video")}}
             }
             Button("IMPORT LESSON JSON") {importing=true}
         }.disabled(model.busyRecording || model.hasUnsaved)

@@ -1,8 +1,8 @@
 # GhostHands
 
-Learn a hands-on skill through spatial demonstrations on Apple Vision Pro. Built for SASEHacks 2026, GhostHands includes a paper boat lesson, an interactive engine cutaway, and a manually guided cabin-filter replacement rehearsal.
+Learn a hands-on skill through spatial demonstrations on Apple Vision Pro. Built for SASEHacks 2026, GhostHands includes a paper boat lesson, interactive piston-engine, jet-turbine and gearbox labs, and a manually guided cabin-filter replacement rehearsal.
 
-![GhostHands placement instructions](Setup-Build6.png)
+![GhostHands docked tutorial — simulator](Workspace-Build10.png)
 
 ## What it does
 
@@ -13,7 +13,10 @@ Learn a hands-on skill through spatial demonstrations on Apple Vision Pro. Built
 - Records real hand joints and replays them relative to the paper workspace.
 - Seeks the YouTube tutorial to each action, pauses at the segment end, and replays that segment alongside the spatial guide.
 - Accepts spoken Next, Back, Slow down, Faster, Show that again, Pause, Play, and Read instructions.
-- Reads instructions after video playback stops. Narration stops when video resumes.
+- Bundles 45 natural AI-generated instruction clips for offline playback. Settings → Audio controls automatic reading and repetition after video (off by default). Narration stops when video resumes.
+- Anchors YouTube directly above the paper’s far edge, with height/distance adjustments in Place.
+- Keeps the right panel at a fixed size with compact tabs, dropdowns and paginated recordings.
+- Explores a jet engine with fan, compressor, combustion, turbine, bypass/core flow and exploded inspection; a gearbox adds meshing gears and defect-finding practice.
 - Includes a 2018 Toyota Corolla cabin-filter lesson with a 3D housing/filter illustration, manual arrows and a numbered parts tray.
 - Teaches an engine’s four-stroke cycle with a native 3D cutaway, moving piston/rod/crank, opening valves and a spark cue. Tap a part or use the parts dropdown to highlight it.
 - Authors new lessons with video timestamps, written instructions, fingertip-placed arrows, and local hand takes; imports/exports lesson JSON.
@@ -29,11 +32,11 @@ The built-in demonstrations are authored illustrations, not expert recordings or
 4. Enter Workspace, find a large clear spot, and select **I Have a Clear Spot**. Lift your right index, move it to the table center, and hold still for two seconds.
 5. Use **Place → Reposition** to expose movement arrows around the paper, then select **Done**.
 6. For timed boat/filter lessons, the selected video opens automatically. Tap Play if YouTube requires it. Next/Back select a timed action; Show That Again replays it.
-7. Enable **Settings → Voice** and grant microphone/speech permissions. Say “Next,” “Slow down,” or “Show that again.” While video audio is playing, say “GhostHands, next” (the wake phrase helps avoid tutorial speech triggering controls). Read Instructions is enabled by default and waits for the video to pause.
+7. Enable **Settings → Voice** and grant microphone/speech permissions. Say “Next,” “Slow down,” or “Show that again.” While video audio is playing, say “GhostHands, next” (the wake phrase helps avoid tutorial speech triggering controls). Auto-read is enabled by default for 3D lessons. Repeat After Video defaults off; enable it in Settings → Audio if wanted. Read Now pauses the video first.
 8. Choose **Lessons → Cabin air filter** for the repair rehearsal. Use **Place → Arrow Start/End** to anchor each action manually. Tray buttons mark parts stored/returned; they do not detect objects.
 9. **Lessons → New Lesson / Edit a Copy** opens the editor. Load a YouTube URL, scrub it, mark Start/End, write each action, preview, and save. Record and attach a take for custom hand motion. JSON export includes cues and timings; recordings remain local.
 10. Choose **Lessons → Inside a car engine** for the engine lesson. Use Next to study each stroke, or Replay/Loop in the playback More menu. Its reference video is optional and plays independently.
-11. For human replay, turn on **Settings → Human Replay**, record both hands, then replay the take.
+11. For human replay, turn on **Settings → Scene → Human Replay**, record both hands, then replay the take.
 
 The Place controls include rotation, movement, and 2 mm height adjustment. Real hand recording requires Vision Pro; the simulator can show the authored animations.
 
@@ -48,6 +51,8 @@ The Place controls include rotation, movement, and 2 mm height adjustment. Real 
 | `PaperLesson.swift` | Boat instructions and generated hand demonstrations |
 | `PaperMotion.swift` | Authored folding geometry and hand contact paths |
 | `EngineCycle.swift` | Crank/rod/piston geometry and teaching stroke states |
+| `LabContent.swift`, `LabVisual.swift` | Turbofan/gearbox lessons and interactive procedural assemblies |
+| `NarrationPolicy.swift` | Narration preferences and exact-text offline clip lookup |
 | `MechanicalVisual.swift` | Interactive engine cutaway and filter housing illustration |
 | `HologramHand.swift` | Translucent joint rendering |
 | `StudioUI.swift` | SwiftUI controls |
@@ -67,7 +72,7 @@ swift test --scratch-path /tmp/GhostHandsTests --disable-sandbox
 node Scripts/player-controller-tests.cjs
 ```
 
-Build 9: 49 core tests and 8 player-controller scenarios passed. Signed device and simulator builds succeeded. Rendered the far-side playback panel, engine cutaway and filter housing in the simulator. Engine tests check rod length, crank connection, stroke direction, valve states, independent transport and mechanical recording replay. The live YouTube step-seek/end/replay check passed in build 8; build 9 retains its player controller. Installation remains deferred until the headset reconnects. Real target selection, menu reach, voice and novice tutorial usability still need worn-headset validation.
+Build 10: 57 core tests and 8 player-controller scenarios passed. All 45 narration files decoded successfully. Device and simulator builds, live docked-video playback, and physical installation are recorded in `VALIDATION.txt`. Worn-headset menu reach, video comfort, targeting and audio quality still require user testing.
 
 ## Data and assets
 
@@ -86,3 +91,9 @@ The boat source is [How to Make a Paper Boat by EzOrigami](https://www.youtube.c
 Timestamps were manually reviewed. Illustrated folds are stretched across each video segment; they are not frame-exact captured movements. New YouTube links require authored steps and timings; arbitrary videos are not automatically converted to 3D. Offline, close the video and use the authored guide.
 
 ![Optional human replay — simulator fixture](Human-Replay-Build6.png)
+
+## Jet, gearbox and narration
+
+The turbofan lesson uses an original procedural cutaway with selectable modules, rotating compressor/turbine stages, core and bypass flow, and a miniature aircraft silhouette. The [NASA turbofan explanation](https://www.grc.nasa.gov/www/k-12/airplane/Animation/turbtyp/etfh.html) informs the lesson. The gearbox illustrates a 12:24 tooth ratio. Exploded views and deliberately shortened components support visual inspection practice; these are teaching models, not engineering simulations or maintenance instructions.
+
+`NarrationResources/manifest.json` documents 45 AI-generated clips produced from the original built-in instructions using OpenAI gpt-4o-mini-tts and the Cedar voice. The app plays the bundled MP3 files offline; it contains no API key and makes no speech-generation requests. Edited/custom instructions use the best installed English device voice. Generation reference: [OpenAI text-to-speech guide](https://developers.openai.com/api/docs/guides/text-to-speech).

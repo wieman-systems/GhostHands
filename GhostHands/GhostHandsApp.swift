@@ -15,6 +15,10 @@ struct GhostHandsApp: App {
             .windowResizability(.contentSize)
         WindowGroup(id:"author") {LessonAuthorView().environment(studio).environment(voice)}
             .windowStyle(.plain).defaultSize(width:900,height:740).windowResizability(.contentSize)
+        #if targetEnvironment(simulator)
+        WindowGroup(id:"panel-preview") {SpatialControls().environment(studio).environment(voice)}
+            .windowStyle(.plain).defaultSize(width:470,height:590).windowResizability(.contentSize)
+        #endif
         ImmersiveSpace(id: "studio") { SpatialStudio().environment(studio).environment(voice) }
             .immersionStyle(selection: .constant(.mixed), in: .mixed)
     }

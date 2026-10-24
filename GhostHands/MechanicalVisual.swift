@@ -84,8 +84,9 @@ import simd
         label("FILTER HOUSING",at:[-0.057,0.07,-0.02]);label("ILLUSTRATION",at:[-0.042,0.003,0.15])
     }
     func update(model:StudioModel) {
-        let visible=model.placed && !model.adjustingPlacement && model.showGuides && model.course.mechanicalModel != nil
+        let visible=model.placed && !model.adjustingPlacement && model.showGuides && [.engine,.cabinFilter].contains(model.course.mechanicalModel)
         root.isEnabled=visible;guard visible else{return}
+        root.scale=SIMD3(repeating:model.modelScale);root.orientation=simd_quatf(angle:model.modelRotation,axis:[0,1,0])
         if kind != model.course.mechanicalModel {
             root.children.removeAll();for group in [piston,rod,crank,inlet,exhaust,lid,filter] {group.children.removeAll()}
             parts=[:];flow=[];spark=nil;focus=nil;kind=model.course.mechanicalModel
@@ -100,6 +101,7 @@ import simd
             inlet.position.y=pose.inletOpen ? 0.168 : 0.177;exhaust.position.y=pose.exhaustOpen ? 0.168 : 0.177
             spark?.isEnabled=pose.spark
             for (i,dot) in flow.enumerated() {
+                dot.isEnabled=model.showFlow
                 let t=(Float(i)/Float(flow.count)+pose.progress).truncatingRemainder(dividingBy:1)
                 if pose.stroke==0 {dot.position=[-0.075+t*0.075,0.19-t*0.04,Float(i%3-1)*0.008]}
                 else if pose.stroke==3 {dot.position=[t*0.075,0.155+t*0.035,Float(i%3-1)*0.008]}

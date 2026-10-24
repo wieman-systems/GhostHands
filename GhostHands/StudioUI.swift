@@ -4,12 +4,15 @@ extension Color {
     static let ghostMint = Color.white
     static let ghostLavender = Color.white.opacity(0.7)
 }
+private struct CompactControlsKey:EnvironmentKey {static let defaultValue=false}
+extension EnvironmentValues {var compactControls:Bool {get{self[CompactControlsKey.self]}set{self[CompactControlsKey.self]=newValue}}}
 struct SquareButton: ButtonStyle {
+    @Environment(\.compactControls) private var compact
     var selected=false
     @Environment(\.isEnabled) private var enabled
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.frame(maxWidth:.infinity,alignment:.center).multilineTextAlignment(.center).font(.system(size:15,weight:.medium))
-            .padding(.horizontal,14).padding(.vertical,11).frame(minHeight:52)
+        configuration.label.frame(maxWidth:.infinity,alignment:.center).multilineTextAlignment(.center).font(.system(size:compact ? 12 : 15,weight:.medium)).lineLimit(2).minimumScaleFactor(0.85)
+            .padding(.horizontal,compact ? 8 : 14).padding(.vertical,compact ? 6 : 11).frame(height:compact ? 38 : 52)
             .foregroundStyle(selected ? .black : .white)
             .background(selected ? Color.white : Color.white.opacity(configuration.isPressed ? 0.24 : 0.06))
             .overlay(Rectangle().stroke(.white.opacity(selected ? 1 : 0.25),lineWidth:1))
@@ -17,14 +20,15 @@ struct SquareButton: ButtonStyle {
     }
 }
 struct DeskCard<Content: View>: View {
+    @Environment(\.compactControls) private var compact
     let title: String
     @ViewBuilder var content: Content
     var body: some View {
-        VStack(alignment:.leading,spacing:18) {
+        VStack(alignment:.leading,spacing:compact ? 10 : 18) {
             HStack { Text(title).font(.system(size:12,weight:.semibold,design:.monospaced)).tracking(2); Spacer(); Image(systemName:"plus").font(.caption) }
             Rectangle().fill(.white.opacity(0.25)).frame(height:1)
             content
-        }.padding(24).foregroundStyle(.white).background(.black.opacity(0.96))
+        }.padding(compact ? 16 : 24).frame(maxWidth:.infinity,alignment:.topLeading).foregroundStyle(.white).background(.black.opacity(0.96))
             .overlay(Rectangle().stroke(.white.opacity(0.45),lineWidth:1))
             .buttonStyle(SquareButton()).tint(.white).preferredColorScheme(.dark)
     }
@@ -60,13 +64,18 @@ struct HomeView: View {
             } else {
                 Button(model.transitioning ? "OPENING…" : "ENTER WORKSPACE") {enter()}.buttonStyle(SquareButton(selected:true)).frame(width:360).disabled(model.transitioning || model.immersive)
                 Text(model.course.object).font(.caption.monospaced()).foregroundStyle(.secondary)
+                Text("Optional AI-generated narration · Audio settings control read-aloud.").font(.caption2).foregroundStyle(.secondary)
             }
         }.padding(36).frame(width:960,height:700).background(.black).foregroundStyle(.white)
             .overlay(Rectangle().stroke(.white.opacity(0.35),lineWidth:1)).preferredColorScheme(.dark)
             .alert("GhostHands",isPresented:Binding(get:{model.error != nil},set:{if !$0 {model.error=nil}})) { Button("OK") { model.error=nil } } message: { Text(model.error ?? "") }
             .task {
                 #if targetEnvironment(simulator)
-                if ["--spatial-preview","--avatar-preview","--move-preview","--setup-preview","--sync-preview","--repair-preview","--author-preview","--engine-preview"].contains(where:{ProcessInfo.processInfo.arguments.contains($0)}),!model.previewConsumed {
+                if ProcessInfo.processInfo.arguments.contains("--panel-preview"),!model.previewConsumed {
+                    model.previewConsumed=true;model.tab = ProcessInfo.processInfo.arguments.contains("--lessons-preview") ? .lessons : .settings
+                    openWindow(id:"panel-preview");dismiss(id:"home");return
+                }
+                if ["--spatial-preview","--avatar-preview","--move-preview","--setup-preview","--sync-preview","--repair-preview","--author-preview","--engine-preview","--jet-preview","--gear-preview","--settings-preview","--lessons-preview"].contains(where:{ProcessInfo.processInfo.arguments.contains($0)}),!model.previewConsumed {
                     model.previewConsumed=true;model.automaticVideo=ProcessInfo.processInfo.arguments.contains("--video-preview") || ProcessInfo.processInfo.arguments.contains("--sync-preview")
                     let result=await open(id:"studio")
                     if case .opened=result {
@@ -77,6 +86,10 @@ struct HomeView: View {
                         if ProcessInfo.processInfo.arguments.contains("--sync-preview") {model.setStep(0)}
                         if ProcessInfo.processInfo.arguments.contains("--repair-preview") {model.chooseLesson(LessonCatalog.repair.id);model.setStep(3)}
                         if ProcessInfo.processInfo.arguments.contains("--engine-preview") {model.chooseLesson(LessonCatalog.engine.id);model.setStep(2);model.seek(3)}
+                        if ProcessInfo.processInfo.arguments.contains("--jet-preview") {model.chooseLesson(LessonCatalog.jet.id);model.setStep(4);model.seek(2)}
+                        if ProcessInfo.processInfo.arguments.contains("--gear-preview") {model.chooseLesson(LessonCatalog.gearbox.id);model.setStep(1);model.seek(2)}
+                        if ProcessInfo.processInfo.arguments.contains("--settings-preview") {model.tab = .settings}
+                        if ProcessInfo.processInfo.arguments.contains("--lessons-preview") {model.tab = .lessons}
                         if ProcessInfo.processInfo.arguments.contains("--author-preview") {model.beginAuthoring(blank:false);openWindow(id:"author")}
                         if ProcessInfo.processInfo.arguments.contains("--avatar-preview") {
                             var fixture=IllustratedMotion.clip(step:2,side:LetterPaper.width)
@@ -120,9 +133,9 @@ struct LessonPanel: View {
             HStack(alignment:.top) {
                 VStack(alignment:.leading,spacing:6) {Text("START SHAPE").font(.caption2.monospaced());PaperFinishDiagram(step:model.lesson,progress:model.currentStep.staticPaper ? 1 : 0).frame(height:110)}
                 VStack(alignment:.leading,spacing:6) {Text("FINISH SHAPE").font(.caption2.monospaced());PaperFinishDiagram(step:model.lesson).frame(height:110)}
-            }
+            }.frame(height:130)
             } else {
-                VStack(spacing:10) {Image(systemName:"wrench.and.screwdriver").font(.system(size:38));Text(model.course.object).font(.caption);Text(model.course.mechanicalModel == .engine ? "ANIMATED ENGINE CUTAWAY" : "MANUAL SPATIAL GUIDANCE").font(.caption2.monospaced())}.frame(maxWidth:.infinity).frame(height:130)
+                VStack(spacing:10) {Image(systemName:model.course.mechanicalModel == .jet ? "airplane" : "wrench.and.screwdriver").font(.system(size:38));Text(model.course.object).font(.caption);Text(model.course.mechanicalModel == .jet ? "TURBOFAN INSPECTION LAB" : model.course.mechanicalModel == .gearbox ? "GEAR DRIVE LAB" : model.course.mechanicalModel == .engine ? "ANIMATED ENGINE CUTAWAY" : "MANUAL SPATIAL GUIDANCE").font(.caption2.monospaced())}.frame(maxWidth:.infinity).frame(height:130)
             }
             // Reserve a fixed reading area so the tabletop touch targets never move.
             ScrollView {
@@ -143,7 +156,7 @@ struct LessonPanel: View {
                 Button("SHOW START") {model.seek(0)}
                 Button("SHOW FINISH") {model.seek(model.progressDuration)}
             }.disabled(model.busyRecording)
-            Text("Watch this action, then try it. Next moves the video and guide together. Say “next” while the video is paused.").font(.system(size:11)).foregroundStyle(.secondary)
+            Text(model.currentStep.id=="inspect" ? (model.defectFound ? "FINDING MARKED · Compare the damaged part with its neighbors." : "Find the short blade or tooth and tap it. Inspect has a hint.") : "Watch this action, then try it. Say “next” to continue.").font(.system(size:11)).foregroundStyle(.secondary)
         }.frame(width:400)
     }
 }
@@ -173,7 +186,7 @@ struct PlaybackControls: View {
                     Button(model.loops ? "Turn looping off" : "Loop this action",systemImage:"repeat") {model.toggleLoop()}.disabled(model.busyRecording)
                     Button("Show start") {model.seek(0)}.disabled(model.busyRecording)
                     Button("Show finish") {model.seek(model.progressDuration)}.disabled(model.busyRecording)
-                    Button("Open reference video",systemImage:"play.rectangle") {open(id:"video")}
+                    if model.course.hasVideo {Button("Open reference video",systemImage:"play.rectangle") {model.showVideo()}}
                     Divider()
                     Button("Home",systemImage:"house") {
                         guard !model.transitioning else{return};model.transitioning=true
@@ -181,42 +194,50 @@ struct PlaybackControls: View {
                     }.disabled(model.transitioning)
                 } label:{Label("MORE",systemImage:"chevron.down")}
             }
-            if model.course.mechanicalModel == .engine {
-                HStack {
-                    Menu {
-                        Button("All parts") {model.engineFocus=nil}
-                        ForEach(EnginePart.allCases) {part in Button(part.title) {model.engineFocus=part}}
-                    } label:{Label(model.engineFocus?.title ?? "EXPLORE ENGINE PARTS",systemImage:"chevron.down")}
-                    Text(model.engineFocus?.detail ?? "Tap a 3D part to highlight it.").font(.caption).frame(maxWidth:.infinity)
-                }
-            }
-        }.frame(width:570)
+            HStack(spacing:10) {
+                Menu {
+                    Button("All parts") {model.engineFocus=nil;model.labFocus=nil}
+                    if model.course.mechanicalModel == .engine {ForEach(EnginePart.allCases){part in Button(part.title){model.engineFocus=part}}}
+                    ForEach(LabPart.available(for:model.course.mechanicalModel)){part in Button(part.title){model.labFocus=part}}
+                } label:{Label("PARTS",systemImage:"chevron.down")}.disabled(model.course.mechanicalModel == nil || model.course.mechanicalModel == .cabinFilter)
+                Menu {
+                    if [.jet,.gearbox].contains(model.course.mechanicalModel) {Button(model.explodedView ? "Assemble" : "Exploded view"){model.explodedView.toggle()}}
+                    Button("Rotate left"){model.modelRotation -= .pi/8}
+                    Button("Rotate right"){model.modelRotation += .pi/8}
+                    Button(model.modelScale>1 ? "Normal size" : "Enlarge"){model.modelScale=model.modelScale>1 ? 1 : 1.15}
+                    if [.engine,.jet].contains(model.course.mechanicalModel) {Button(model.showFlow ? "Hide flow" : "Show flow"){model.showFlow.toggle()}}
+                    if [.jet,.gearbox].contains(model.course.mechanicalModel) {Button(model.showCasing ? "Hide casing" : "Show casing"){model.showCasing.toggle()}}
+                    if model.currentStep.id=="inspect" {Button(model.revealDefect ? "Hide hint" : "Reveal defect"){model.revealDefect.toggle()}}
+                    Button("Reset view"){model.modelRotation=0;model.modelScale=1;model.explodedView=false;model.engineFocus=nil;model.labFocus=nil;model.revealDefect=false}
+                } label:{Label("INSPECT",systemImage:"chevron.down")}.disabled(model.course.mechanicalModel == nil || model.busyRecording)
+                Text(model.labFocus?.detail ?? model.engineFocus?.detail ?? "Tap a model part to inspect it.").font(.caption2).lineLimit(3).frame(width:200,height:44,alignment:.leading)
+            }.frame(height:46)
+
+        }.frame(width:570,height:310).environment(\.compactControls,true)
     }
 }
 
 struct SpatialControls: View {
     @Environment(StudioModel.self) private var model
     var body: some View {
-        DeskCard(title:"02 / CREATE") {
-            HStack(spacing:5) {
-                ForEach([StudioTab.lessons,.record,.library,.placement,.settings],id:\.self) { tab in
-                    Button(tab.rawValue) {model.tab=tab}.buttonStyle(SquareButton(selected:model.tab==tab || (tab == .record && model.tab == .learn)))
+        DeskCard(title:"02 / WORKSPACE") {
+            HStack(spacing:4) {
+                ForEach([StudioTab.lessons,.record,.library,.placement,.settings],id:\.self) {tab in
+                    Button(tab == .placement ? "Place" : tab.rawValue) {model.tab=tab}.buttonStyle(SquareButton(selected:model.tab==tab || (tab == .record && model.tab == .learn))).frame(maxWidth:.infinity)
                 }
-            }.disabled(model.busyRecording)
-            ScrollView {
-                Group {
-                    switch model.tab {
-                    case .lessons: LessonLibraryPanel()
-                    case .learn,.record: RecordPanel()
-                    case .library: LibraryPanel()
-                    case .placement: PlacementPanel()
-                    case .video: VideoIntro()
-                    case .settings: SettingsPanel()
-                    }
-                }.frame(maxWidth:.infinity,alignment:.leading)
-            }.frame(height:310)
-            Text(model.status).font(.system(size:11)).foregroundStyle(.secondary).lineLimit(3)
-        }.frame(width:470)
+            }.frame(width:422,height:38).disabled(model.busyRecording)
+            Group {
+                switch model.tab {
+                case .lessons:LessonLibraryPanel()
+                case .learn,.record:RecordPanel()
+                case .library:LibraryPanel()
+                case .placement:PlacementPanel()
+                case .video:VideoIntro()
+                case .settings:SettingsPanel()
+                }
+            }.frame(width:422,height:390,alignment:.topLeading)
+            Text(model.status).font(.system(size:11)).foregroundStyle(.secondary).lineLimit(3).frame(width:422,height:40,alignment:.leading)
+        }.frame(width:470,height:590).environment(\.compactControls,true)
             .alert("GhostHands",isPresented:Binding(get:{model.error != nil},set:{if !$0 {model.error=nil}})) {Button("OK"){model.error=nil}} message:{Text(model.error ?? "")}
     }
 }
@@ -227,7 +248,7 @@ struct RecordPanel: View {
         @Bindable var model=model
         VStack(alignment:.leading,spacing:15) {
             Text("Teach this step.").font(.title2.bold())
-            Text(model.currentStep.title).foregroundStyle(.secondary)
+            Text(model.currentStep.title).foregroundStyle(.secondary).lineLimit(2)
             TextField("Name your take",text:$model.recordingName).textFieldStyle(.plain).padding(12).overlay(Rectangle().stroke(.white.opacity(0.4))).disabled(model.busyRecording)
             HStack {
                 ForEach([15.0,30,60],id:\.self) {seconds in Button("\(Int(seconds))s") {model.secondsToRecord=seconds}.buttonStyle(SquareButton(selected:model.secondsToRecord==seconds)).disabled(model.busyRecording)}
@@ -245,65 +266,78 @@ struct RecordPanel: View {
 }
 struct LibraryPanel: View {
     @Environment(StudioModel.self) private var model
-    var body: some View {
-        VStack(alignment:.leading,spacing:14) {
-            Text("Your teaching library").font(.title2.bold())
-            Button("ILLUSTRATED EXAMPLE") {model.load(IllustratedMotion.clip(step:model.step,side:LetterPaper.width))}
-            if model.clips.isEmpty {Text("Record a fold. Your take will appear here.").foregroundStyle(.secondary)}
-            ForEach(model.clips) {clip in
-                Button {model.load(clip)} label:{ VStack(alignment:.leading) {Text(clip.title);Text("\(clip.duration,specifier:"%.1f")s · \(Int(clip.trackedFraction*100))% tracked").font(.caption).foregroundStyle(.secondary)} }
+    @State private var page=0
+    private var pages:Int {max(1,(model.clips.count+3)/4)}
+    var body:some View {
+        VStack(alignment:.leading,spacing:10) {
+            Text("Recorded demonstrations").font(.headline)
+            Button("LESSON DEMO") {model.setStep(model.step)}
+            if model.clips.isEmpty {Text("Record an action to add it here.").font(.caption)}
+            ForEach(Array(model.clips.dropFirst(min(page,pages-1)*4).prefix(4))) {clip in
+                Button {model.load(clip)} label:{HStack {Text(clip.title).lineLimit(1);Spacer();Text("\(Int(clip.duration))s").monospacedDigit()}}
             }
-        }
+            Spacer(minLength:0)
+            HStack {Button("BACK") {page=max(0,page-1)}.disabled(page==0);Text("\(min(page,pages-1)+1) / \(pages)").font(.caption).frame(width:65);Button("MORE") {page=min(pages-1,page+1)}.disabled(page>=pages-1)}
+        }.frame(width:422,height:390,alignment:.topLeading)
     }
 }
+
 struct PlacementPanel: View {
     @Environment(StudioModel.self) private var model
-    var body: some View {
-        VStack(spacing:16) {
-            Text("Fit your workspace").font(.title2.bold())
-            Text("Tap Reposition to reveal arrows around the workspace. Each tap moves it 1 cm; height arrows move it 2 mm.").multilineTextAlignment(.center)
-            Button(model.adjustingPlacement ? "DONE MOVING" : "REPOSITION") {
-                if model.adjustingPlacement {model.adjustingPlacement=false} else {model.beginAdjustment()}
-            }.buttonStyle(SquareButton(selected:true))
-            Button("CHOOSE A NEW TABLE SPOT") {model.beginPlacement()}
-            Text("The object, menus, and human replay move together.").font(.caption)
-            if !model.course.isBoat {
-                Text(model.course.spatialNote).font(.caption)
-                HStack {Button("ARROW START") {model.beginCuePlacement("start")};Button("ARROW END") {model.beginCuePlacement("end")}}
-                if model.cuePlacement != nil {Text(model.status).font(.caption);Button("CANCEL MARKER") {model.cuePlacement=nil}}
+    var body:some View {
+        VStack(alignment:.leading,spacing:10) {
+            Text("Align the workspace").font(.headline)
+            Text("Reposition reveals arrows. Move 1 cm or adjust height by 2 mm per tap.").font(.caption).lineLimit(2)
+            HStack {Button(model.adjustingPlacement ? "DONE" : "REPOSITION") {if model.adjustingPlacement {model.adjustingPlacement=false} else {model.beginAdjustment()}};Button("NEW SPOT") {model.beginPlacement()}}
+            if model.course.hasVideo {
+                Text("VIDEO POSITION").font(.caption.monospaced())
+                HStack {Button("LOWER") {model.videoHeight=max(0.24,model.videoHeight-0.025)};Button("HIGHER") {model.videoHeight=min(0.55,model.videoHeight+0.025)}}
+                HStack {Button("CLOSER") {model.videoDepth=min(-0.18,model.videoDepth+0.025)};Button("FARTHER") {model.videoDepth=max(-0.5,model.videoDepth-0.025)}}
+                Button("RESET VIDEO POSITION") {model.videoHeight=0.30;model.videoDepth = -0.29}
             }
-        }.disabled(model.busyRecording)
+            if model.spatialCue != nil {
+                Text("Place arrows with your right fingertip.").font(.caption)
+                HStack {Button("ARROW START") {model.beginCuePlacement("start")};Button("ARROW END") {model.beginCuePlacement("end")}}
+                if model.cuePlacement != nil {Button("CANCEL MARKER") {model.cuePlacement=nil}}
+            }
+        }.frame(width:422,alignment:.leading).disabled(model.busyRecording)
     }
 }
+
 struct SettingsPanel: View {
     @Environment(StudioModel.self) private var model
     @Environment(VoiceCoach.self) private var voice
-    @Environment(\.openWindow) private var openWindow
-    var body: some View {
-        VStack(spacing:12) {
-            Text("Your workspace").font(.title3.bold())
-            Button(voice.listening ? "VOICE / ON" : "VOICE / OFF") {voice.toggle()}.buttonStyle(SquareButton(selected:voice.listening))
-            Text(voice.status).font(.caption)
-            Text("Next · Back · Slow down · Show that again · Pause · Read instructions. During video, start with “GhostHands.”").font(.caption)
-            if !voice.lastCommand.isEmpty {Text("Heard: \(voice.lastCommand)").font(.caption)}
-            Button(model.narrationEnabled ? "READ INSTRUCTIONS / ON" : "READ INSTRUCTIONS / OFF") {model.narrationEnabled.toggle();model.narrationRevision += 1}
-            if model.currentStep.segment != nil {
-                Button(model.syncVideo ? "VIDEO SYNC / ON" : "VIDEO SYNC / OFF") {model.syncVideo.toggle();if model.syncVideo {model.sendVideo(seek:true,play:model.mode == .playing)}}
+    @State private var section=0
+    var body:some View {
+        VStack(alignment:.leading,spacing:9) {
+            HStack {Button("AUDIO") {section=0}.buttonStyle(SquareButton(selected:section==0));Button("SCENE") {section=1}.buttonStyle(SquareButton(selected:section==1))}
+            if section==0 {
+                Toggle("Auto-read steps",isOn:Binding(get:{model.narrationEnabled},set:{model.narrationEnabled=$0;model.narrationRevision += 1;if !$0 {voice.cancelNarration()}}))
+                Toggle("Repeat after video",isOn:Binding(get:{model.repeatNarrationAfterVideo},set:{model.repeatNarrationAfterVideo=$0;if !$0 {voice.cancelNarration()}}))
+                Text("Off: video + written steps, without automatic spoken repetition.").font(.caption).lineLimit(2)
+                HStack {
+                    Menu {Button("Natural studio voice") {model.naturalNarration=true};Button("Device voice") {model.naturalNarration=false}} label:{Label(model.naturalNarration ? "STUDIO VOICE" : "DEVICE VOICE",systemImage:"chevron.down")}
+                    Button("READ NOW") {model.requestNarration()}
+                }
+                Text("AI-generated narration · bundled for offline playback.").font(.caption2).foregroundStyle(.secondary)
+                Divider()
+                Button(voice.listening ? "VOICE COMMANDS / ON" : "VOICE COMMANDS / OFF") {voice.toggle()}
+                Text(voice.status).font(.caption).lineLimit(2)
+                Text("Next · Back · Slow down · Show that again. During video, say “GhostHands” first.").font(.caption).lineLimit(3)
+            } else {
+                Toggle("Human replay",isOn:Binding(get:{model.avatarEnabled},set:{model.avatarEnabled=$0}))
+                Text("Record both hands for a mirrored person across the table.").font(.caption).lineLimit(2)
+                Text("Table height: \(Int(model.avatarTableHeight*100)) cm").font(.caption)
+                Slider(value:Binding(get:{Double(model.avatarTableHeight)},set:{model.avatarTableHeight=Float($0)}),in:0.6...1)
+                Toggle("Ghost hands",isOn:Binding(get:{model.showHands},set:{model.showHands=$0}))
+                Toggle("Guide model",isOn:Binding(get:{model.showGuides},set:{model.showGuides=$0}))
+                if model.currentStep.segment != nil {Toggle("Sync with video",isOn:Binding(get:{model.syncVideo},set:{model.syncVideo=$0;if $0 {model.sendVideo(seek:true,play:model.mode == .playing)}}))}
+                if model.course.hasVideo {Button("OPEN TUTORIAL") {model.showVideo()}}
             }
-            Text("Read-aloud waits until video audio stops.").font(.caption)
-            Button(model.avatarEnabled ? "HUMAN REPLAY / ON" : "HUMAN REPLAY / OFF") {model.avatarEnabled.toggle()}.buttonStyle(SquareButton(selected:model.avatarEnabled))
-            Text(model.avatarStatus).font(.caption).foregroundStyle(.secondary)
-            Text("Life-size mirrored replay across the table. Turn on, record BOTH hands, then replay. Arms/body are reconstructed; tracking gaps hide the person.").font(.caption).multilineTextAlignment(.center)
-            if model.avatarEnabled {
-                Text("TABLE HEIGHT / \(Int(model.avatarTableHeight*100)) CM").font(.caption.monospaced())
-                Slider(value:Binding(get:{Double(model.avatarTableHeight)},set:{model.avatarTableHeight=Float($0)}),in:0.6...1.0)
-            }
-            Button(model.showHands ? "GHOST HANDS / ON" : "GHOST HANDS / OFF") {model.showHands.toggle()}
-            Button(model.showGuides ? "GUIDE MODEL / ON" : "GUIDE MODEL / OFF") {model.showGuides.toggle()}
-            Button("OPEN STEP VIDEO") {openWindow(id:"video")}
-        }
+        }.font(.system(size:14)).toggleStyle(.switch).frame(width:422,height:390,alignment:.topLeading)
     }
 }
+
 struct PaperMoveControl: View {
     @Environment(StudioModel.self) private var model
     let label:String

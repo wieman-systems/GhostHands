@@ -21,13 +21,24 @@ final class StudioModel {
     var draft: LessonDefinition?
     var isAuthoring = false
     var syncVideo = true
-    var narrationEnabled = true
+    var narrationEnabled = true {didSet {saveNarrationPreferences()}}
+    var repeatNarrationAfterVideo = false {didSet {saveNarrationPreferences();narrationRevision += 1}}
+    var naturalNarration = true {didSet {saveNarrationPreferences()}}
+    var manualNarrationRevision = 0
     var narrationRevision = 0
     private var lastEndedSerial = -1
     var cuePlacement: String?
     var cueOverrides: [String:SpatialCue] = [:]
     var trayContents: Set<Int> = []
     var engineFocus:EnginePart?
+    var labFocus:LabPart?
+    var explodedView=false
+    var modelScale:Float=1
+    var modelRotation:Float=0
+    var showFlow=true
+    var showCasing=true
+    var revealDefect=false
+    var defectFound=false
     private var cueCalibration = TableCalibration()
     private var cueApproach: SIMD3<Float>?
     private var cueApproached = false
@@ -45,6 +56,10 @@ final class StudioModel {
     var avatarStatus = "Off"
     var avatarTableHeight: Float = 0.8
     var automaticVideo = true
+    var dockedVideo=false
+    var videoOwner:UUID?
+    var videoHeight:Float=0.30
+    var videoDepth:Float = -0.29
     var paperSide: Float = LetterPaper.width
     var paperHeight: Float = LetterPaper.height
     var placementReady = false
@@ -77,6 +92,9 @@ final class StudioModel {
 
     init(storage: URL? = nil) {
         self.storage = storage ?? URL.documentsDirectory.appendingPathComponent("GhostHandsRecordings", isDirectory: true)
+        if let data=try? Data(contentsOf:self.storage.deletingLastPathComponent().appendingPathComponent("NarrationPreferences.json")),let preferences=try? JSONDecoder().decode(NarrationPreferences.self,from:data) {
+            narrationEnabled=preferences.enabled;repeatNarrationAfterVideo=preferences.repeatAfterVideo;naturalNarration=preferences.naturalVoice
+        }
         let result = ClipStorage.load(in: self.storage)
         clips = result.clips
         customLessons = LessonStorage.load(in:self.storage.deletingLastPathComponent().appendingPathComponent("GhostHandsLessons"))
@@ -98,10 +116,22 @@ final class StudioModel {
     var linkedVideo:Bool {syncVideo && video.visible && !video.failed && !isAuthoring && currentStep.segment != nil && !busyRecording}
     var cueKey:String {course.id+"/"+currentStep.id}
     var spatialCue:SpatialCue? {cueOverrides[cueKey] ?? currentStep.cue}
-    var instructionToRead:String {"Step \(step+1). \(currentStep.title). \(currentStep.instruction). \(currentStep.check)"}
+    var instructionToRead:String {NarrationPolicy.text(for:currentStep)}
+    var automaticNarrationAllowed:Bool {NarrationPolicy.allows(automatic:narrationEnabled,hasVideo:video.visible && !video.failed && course.hasVideo,repeatAfterVideo:repeatNarrationAfterVideo,manual:false)}
+    func saveNarrationPreferences() {
+        let preferences=NarrationPreferences(enabled:narrationEnabled,repeatAfterVideo:repeatNarrationAfterVideo,naturalVoice:naturalNarration)
+        let url=storage.deletingLastPathComponent().appendingPathComponent("NarrationPreferences.json")
+        do {try FileManager.default.createDirectory(at:url.deletingLastPathComponent(),withIntermediateDirectories:true);try JSONEncoder().encode(preferences).write(to:url,options:.atomic)} catch {self.error="Could not save audio preferences."}
+    }
+    func requestNarration() {pauseVideo();manualNarrationRevision += 1}
+    func selectLabPart(_ name:String) {
+        guard !busyRecording,!adjustingPlacement else{return}
+        if name=="lab-defect",currentStep.id=="inspect" {defectFound=true;status="Finding marked: this example has a shortened \(course.mechanicalModel == .jet ? "blade tip" : "gear tooth")."}
+        else if name.hasPrefix("lab-part-") {labFocus=LabPart(rawValue:String(name.dropFirst(9)))}
+    }
     var progressDuration:Double {selected?.duration ?? currentStep.segment?.duration ?? 8}
 
-    var sourceLabel: String { selected?.isIllustration == false ? "Recorded hands" : isPaperLesson ? "Illustrated motion · not a recording" : course.mechanicalModel == .engine ? "Engine cutaway · illustrative" : course.mechanicalModel == .cabinFilter ? "Manual cues + filter model" : "Manually placed spatial cues" }
+    var sourceLabel: String { selected?.isIllustration == false ? "Recorded hands" : isPaperLesson ? "Illustrated motion · not a recording" : course.mechanicalModel == .jet ? "Turbofan · teaching cutaway" : course.mechanicalModel == .gearbox ? "Gear drive · teaching assembly" : course.mechanicalModel == .engine ? "Engine cutaway · illustrative" : course.mechanicalModel == .cabinFilter ? "Manual cues + filter model" : "Manually placed spatial cues" }
 
     func entered() async {
         immersive = true; interactionActive = true; previousTick = 0; placed = false
@@ -112,7 +142,7 @@ final class StudioModel {
     }
     func leftStudio() {
         if mode == .recording { finishRecording() }
-        pauseVideo(); cuePlacement=nil; mode = .paused; immersive = false; transitioning = false
+        pauseVideo();dockedVideo=false; cuePlacement=nil; mode = .paused; immersive = false; transitioning = false
         onRender = nil; capture.stop()
     }
     func suspend() {
@@ -150,7 +180,7 @@ final class StudioModel {
     }
     func setStep(_ index: Int) {
         guard !busyRecording else { return }
-        step = min(max(index, 0), stepCount - 1);cuePlacement=nil
+        step = min(max(index, 0), stepCount - 1);cuePlacement=nil;revealDefect=false;defectFound=false;labFocus=nil
         paperSide = LetterPaper.width; paperHeight = LetterPaper.height; showGuides = true
         selected = currentStep.recordingID.flatMap {id in clips.first{$0.id==id}}
         if selected == nil,let paper=currentStep.paperIndex {selected=IllustratedMotion.clip(step:paper,side:paperSide)}
@@ -163,16 +193,17 @@ final class StudioModel {
     }
     func chooseLesson(_ id:String) {
         guard !busyRecording,!hasUnsaved,lessons.contains(where:{$0.id==id}) else{return}
-        pauseVideo();isAuthoring=false;draft=nil;activeLessonID=id;trayContents=[];engineFocus=nil;setStep(0);tab = .lessons
+        pauseVideo();isAuthoring=false;draft=nil;activeLessonID=id;trayContents=[];engineFocus=nil;labFocus=nil;explodedView=false;modelScale=1;modelRotation=0;setStep(0);tab = .lessons
     }
     func sendVideo(seek:Bool,play:Bool,time:Double?=nil) {
         guard let link=YouTubeLink(course.videoURL) else{return}
         video.request(videoID:link.videoID,segment:isAuthoring ? nil : currentStep.segment,time:time,seek:seek,play:play && (isAuthoring || currentStep.segment != nil),rate:speed,loop:loops && !isAuthoring)
     }
     func pauseVideo() {if video.visible {sendVideo(seek:false,play:false)}}
-    func videoOpened() {video.visible=true;sendVideo(seek:true,play:immersive && placed && !isAuthoring && !busyRecording)}
-    func retryVideo() {video.failed=false;video.ready=false;video.playerGeneration += 1;videoOpened()}
-    func videoClosed() {let wasLinked=linkedVideo;video.close();if wasLinked {mode = .paused};narrationRevision += 1}
+    func showVideo() {guard course.hasVideo else{return};dockedVideo=true}
+    func videoOpened(owner:UUID?=nil) {videoOwner=owner;video.visible=true;sendVideo(seek:true,play:immersive && placed && !isAuthoring && !busyRecording)}
+    func retryVideo() {video.failed=false;video.ready=false;video.playerGeneration += 1;videoOpened(owner:videoOwner)}
+    func videoClosed(owner:UUID?=nil) {if let owner,videoOwner != owner {return};videoOwner=nil;let wasLinked=linkedVideo;video.close();if wasLinked {mode = .paused};narrationRevision += 1}
     func changeSpeed(_ value:Double) {speed=min(2,max(0.25,value));if linkedVideo {sendVideo(seek:false,play:video.playing)}}
     func toggleLoop() {loops.toggle();if linkedVideo {sendVideo(seek:false,play:video.playing)}}
     func acceptVideo(serial:Int,id:String,time:Double,duration:Double,state:Int,rate:Double,ended:Bool) {
@@ -192,7 +223,7 @@ final class StudioModel {
         case .replay:replayCurrent()
         case .pause:mode = .paused;pauseVideo()
         case .play:if mode != .playing {playPause()}
-        case .read:narrationRevision += 1
+        case .read:requestNarration()
         case .stopListening:break
         }
     }

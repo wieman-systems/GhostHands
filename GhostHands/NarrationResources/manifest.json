@@ -1,0 +1,279 @@
+{
+  "provider": "OpenAI",
+  "model": "gpt-4o-mini-tts",
+  "voice": "cedar",
+  "generated": "2026-10-24",
+  "disclosure": "AI-generated narration; no real speaker impersonated.",
+  "clips": [
+    {
+      "file": "e56d8263b0339ea1480ab86bb51e14c1522ba6d091e20bcfbe8154c73f626d0f.mp3",
+      "lesson": "letter-boat-video-v1",
+      "step": "boat-0",
+      "text": "Fold left to right. Bring the left long edge to the right long edge. Match the corners, then press the fold."
+    },
+    {
+      "file": "7bde6f97d711322ae9bbf05ba5577053f17600f1ba785b8b12b665b281ec29e3.mp3",
+      "lesson": "letter-boat-video-v1",
+      "step": "boat-1",
+      "text": "Open the sheet again. Unfold the flap you just made. Leave the center crease visible."
+    },
+    {
+      "file": "fd1c45f6958678be7d696e25ca0a8ec491250510cd423e1b7370e0bd41d55ae5.mp3",
+      "lesson": "letter-boat-video-v1",
+      "step": "boat-2",
+      "text": "Fold the top down. Bring the far short edge to the near short edge. The center crease stays vertical."
+    },
+    {
+      "file": "3754cb1a6e51522c4ed4318a3be85622a03636536a9c15c9a4fd174672478ad8.mp3",
+      "lesson": "letter-boat-video-v1",
+      "step": "boat-3",
+      "text": "Fold the right corner. Bring only the top-right corner to the center line. Its top edge lines up with that center crease."
+    },
+    {
+      "file": "130c6550043454fb533342801bdb15d3fef2191308754582cdabfdfa4dccb232.mp3",
+      "lesson": "letter-boat-video-v1",
+      "step": "boat-4",
+      "text": "Fold the left corner. Repeat with the top-left corner. The two folded edges meet in the middle."
+    },
+    {
+      "file": "e0f7f16f24eae9264c9a51922abfbeef65a56b95309bfd6b3cdf832d66fde739.mp3",
+      "lesson": "letter-boat-video-v1",
+      "step": "boat-5",
+      "text": "Lift the front strip. Lift only the front layer of the bottom strip. Fold it upward along the base of the triangles."
+    },
+    {
+      "file": "0a702f6c1b9d04a1615610ceeee23a155efe2635cdd73c47ffe7254084ab0336.mp3",
+      "lesson": "letter-boat-video-v1",
+      "step": "boat-6",
+      "text": "Turn the model over. Keep the point away from you. Turn the entire model over from left to right."
+    },
+    {
+      "file": "84259f8342ad89627dd8dbff8876df786b53cb3a80166d0614a6c40d46adcf5a.mp3",
+      "lesson": "letter-boat-video-v1",
+      "step": "boat-7",
+      "text": "Lift the back strip. Fold this remaining bottom strip upward along the same line."
+    },
+    {
+      "file": "d1c4b98def3c3b4af082dcc546dc253ceaa887c01a24c305e95b5355933b070c.mp3",
+      "lesson": "letter-boat-video-v1",
+      "step": "boat-9",
+      "text": "Open the hat. Lift the hat slightly and hold it upright. Find the opening under its brim. Put your thumbs inside and separate the front and back layers. Keep the top closed."
+    },
+    {
+      "file": "69d09bc137d30f0a93370fb28aceb582d98aa0ff6ffd32d1754503397ef751f3.mp3",
+      "lesson": "letter-boat-video-v1",
+      "step": "boat-10",
+      "text": "Flatten into a diamond. Keep the front and back layers separated. Push the LEFT and RIGHT corners toward each other; the opening widens in the other direction. Press the raised ridge down. Turn the flat square so an open corner faces you."
+    },
+    {
+      "file": "0d37d9d7f888bd42f4637f1358dd89274dff0be148dc0da6a90a2cc4d46e7cea.mp3",
+      "lesson": "letter-boat-video-v1",
+      "step": "boat-8",
+      "text": "Tidy the diamond edges. Keep the diamond flat. Tuck the small projecting brim corners around its edges, following the video. Leave the lower layers separate."
+    },
+    {
+      "file": "ce32a79b74982328fe53b815e08642ecf800873719f130d2d121b24eb2ee3e4e.mp3",
+      "lesson": "letter-boat-video-v1",
+      "step": "boat-11",
+      "text": "Lift the front lower tip. Lift only the front lower tip to the top tip. Match the points and crease across the middle."
+    },
+    {
+      "file": "fd8ef990cc42049792907798395250c700dc8172a3d501398c45a8b17d8063e2.mp3",
+      "lesson": "letter-boat-video-v1",
+      "step": "boat-12",
+      "text": "Turn the diamond over. Turn the whole model over, keeping the top point away from you."
+    },
+    {
+      "file": "70ab652ce2a8a96786cb6c0ca195c50a2f1d1ff5cc26f6d8fa7178c317488232.mp3",
+      "lesson": "letter-boat-video-v1",
+      "step": "boat-13",
+      "text": "Lift the remaining tip. Bring this lower tip to the top point. Crease it to match the other side."
+    },
+    {
+      "file": "01e88a54db900710f7ae1082c9fd34aaf422405fac1305f3a499e2361ccf0a7c.mp3",
+      "lesson": "letter-boat-video-v1",
+      "step": "boat-14",
+      "text": "Open the small triangle. Lift the small triangle upright. Find the opening at the bottom, then separate its front and back layers with your thumbs."
+    },
+    {
+      "file": "3872ef4c77f0d48b2e16beeddcc2abe71abd1695bc02ceefce98c91fc657aad2.mp3",
+      "lesson": "letter-boat-video-v1",
+      "step": "boat-15",
+      "text": "Flatten the small diamond. Bring the outer corners together and flatten. Turn it so the two loose points are at the top."
+    },
+    {
+      "file": "c9b2e3a1b6b730c94a566f8afa2e466241f8364acf60bb5660cf8ec351d8ad20.mp3",
+      "lesson": "letter-boat-video-v1",
+      "step": "boat-16",
+      "text": "Pull the two tips apart. Hold one loose upper tip in each hand. Pull left and right slowly; let the center rise by itself."
+    },
+    {
+      "file": "3fab2cc22f83cd05aea5c14ea7e11ee1fe6f286ed6041185d77fd9f9532b603f.mp3",
+      "lesson": "letter-boat-video-v1",
+      "step": "boat-17",
+      "text": "Open the hull. Gently spread the bottom so the boat can stand. Sharpen the side creases without pushing down the center."
+    },
+    {
+      "file": "f2798a8ec125cab3bffb4652e43d32aa2ec4c70ef10c2eabf29af60155902eb7.mp3",
+      "lesson": "corolla-2018-cabin-filter",
+      "step": "open",
+      "text": "Open the glove box. Empty and open the glove box. In tabletop rehearsal, use a box and lid as the housing and cover."
+    },
+    {
+      "file": "3780bb2181a1eea45ec652bb1bbdfb159e216badb8c9624ddd28b4276001f26d.mp3",
+      "lesson": "corolla-2018-cabin-filter",
+      "step": "damper",
+      "text": "Release the damper. Support the glove box and disconnect the small damper arm from its side peg as shown."
+    },
+    {
+      "file": "494fa264d5ebae29fe8d173f8528f771ac69dbc4a9316a247b9fb546b98a3474.mp3",
+      "lesson": "corolla-2018-cabin-filter",
+      "step": "lower",
+      "text": "Lower past the stops. Gently press the glove-box sides inward to clear their stops, then lower the box."
+    },
+    {
+      "file": "df74fe2439897ce9a43515d2628206dfb700f254af35ac94a279f5d3cc8e4957.mp3",
+      "lesson": "corolla-2018-cabin-filter",
+      "step": "cover",
+      "text": "Remove the filter cover. Release the cover tab and remove the narrow cover. Store it in tray space 1."
+    },
+    {
+      "file": "ab9a0743ff39f9c765ebe42b3a320c0c189b6fbfda0db6a2d2e385bb1482eaa6.mp3",
+      "lesson": "corolla-2018-cabin-filter",
+      "step": "remove",
+      "text": "Slide out the old filter. Pull the old filter straight out. Keep it separate in tray space 2."
+    },
+    {
+      "file": "f89bf8b83d42167250ce9310becf15a09a6b1d834455ba5c5d48eaf896909fd4.mp3",
+      "lesson": "corolla-2018-cabin-filter",
+      "step": "compare",
+      "text": "Check the replacement. Compare the replacement's size and markings. This video uses AQ1102C with UP arrows. UP and AIR FLOW markings mean different things; follow your filter's instructions."
+    },
+    {
+      "file": "ee7447eb0a9fcd645ff83b3f3f421a6d9b499749e86709025ba0400b91e2cc91.mp3",
+      "lesson": "corolla-2018-cabin-filter",
+      "step": "insert",
+      "text": "Insert the new filter. For the AQ1102C shown here, keep UP arrows pointing upward and slide the filter fully into its housing. Do not force a mismatched filter."
+    },
+    {
+      "file": "918c079e98e574a08a0c2d3295c9273a039af76e3264a184cacfb96a4c2ae41e.mp3",
+      "lesson": "corolla-2018-cabin-filter",
+      "step": "replace-cover",
+      "text": "Refit the cover. Return the cover from tray space 1. Engage its locating end and secure its tab."
+    },
+    {
+      "file": "941de1dc13aefb3a755b984220849eb62d9fbb297213cdef50f288a774f32c93.mp3",
+      "lesson": "corolla-2018-cabin-filter",
+      "step": "raise",
+      "text": "Raise the glove box. Lift the glove box and gently clear its side stops back into their normal position."
+    },
+    {
+      "file": "62d78e3cf311a56ab8afdf9fd27bf57960d26ad1845e2ba1d6f109ed90cf62a8.mp3",
+      "lesson": "corolla-2018-cabin-filter",
+      "step": "reattach",
+      "text": "Reconnect the damper. Reconnect the damper arm to its peg while supporting the glove box."
+    },
+    {
+      "file": "97b97e3e46fe5e2b8f7e9e48107765c6f6415a1948f11ef2bc079c80e4365054.mp3",
+      "lesson": "corolla-2018-cabin-filter",
+      "step": "check",
+      "text": "Check and close. Open and close the glove box gently. Confirm its movement and latch, and account for the removed cover and old filter."
+    },
+    {
+      "file": "3fa27cf2ed2455e7968abe3736cc0288d6fd85fb5bc2515a672f7910e7564d18.mp3",
+      "lesson": "four-stroke-engine",
+      "step": "parts",
+      "text": "Meet the engine parts. Tap the piston, connecting rod, crankshaft, inlet valve, exhaust valve, or spark plug. Watch how the rod links the piston's motion to crankshaft rotation."
+    },
+    {
+      "file": "5edbd98f69477c91595d3620dd5322da48f899c227e79882187d002c3666bb81.mp3",
+      "lesson": "four-stroke-engine",
+      "step": "intake",
+      "text": "1 / Intake. The piston travels down while the inlet valve opens. The dots show incoming charge entering the cylinder."
+    },
+    {
+      "file": "5cc7c4dec4efc8b3a780bae9ab912e2822b1c63dbfaf2b4f3136443eeef3a6f2.mp3",
+      "lesson": "four-stroke-engine",
+      "step": "compression",
+      "text": "2 / Compression. Both valves close. The piston rises and compresses the charge above it."
+    },
+    {
+      "file": "e29c15104c264a1c2dd410ae2942a90284775f98b918c0ce642e3391acad37a9.mp3",
+      "lesson": "four-stroke-engine",
+      "step": "power",
+      "text": "3 / Power. A spark begins combustion near the top. Expanding gas pushes the piston down; the connecting rod transfers this force to the crankshaft."
+    },
+    {
+      "file": "f5b05fc3d988a378cc32b26e98b34e9467d2d8ae3c08c2bbd69299ff39546306.mp3",
+      "lesson": "four-stroke-engine",
+      "step": "exhaust",
+      "text": "4 / Exhaust. The exhaust valve opens. The rising piston pushes spent gas out. Four strokes complete one cycle over two crankshaft revolutions."
+    },
+    {
+      "file": "5862c35aa34d5b27526381de165be5e6c10817f77a104c016d493537bddd4403.mp3",
+      "lesson": "turbofan-lab",
+      "step": "overview",
+      "text": "An engine beneath the wing. Follow air through the fan, compressor, combustor, turbine and nozzle. The surrounding path carries bypass air around the core."
+    },
+    {
+      "file": "8b1eb67f5204d882c125c0f9637c4fb4daa21cf9a4a249b6fa509831907de9a5.mp3",
+      "lesson": "turbofan-lab",
+      "step": "fan",
+      "text": "Fan and bypass. The large front fan feeds two paths. Some air enters the core; the rest flows around it through the bypass duct."
+    },
+    {
+      "file": "7b2386a2e2c0577bb697e8d210c764ef237c04de81a5c951b515df1ea6b3f32c.mp3",
+      "lesson": "turbofan-lab",
+      "step": "compressor",
+      "text": "Compression stages. Rows of rotating blades and stationary vanes guide core air through the compressor. The high-pressure compressor shares a shaft with its turbine."
+    },
+    {
+      "file": "9b5efd0ce4943d01f9879b659be3463a5639eed0babe1dfcbf40f69c5dbc0783.mp3",
+      "lesson": "turbofan-lab",
+      "step": "combustor",
+      "text": "Combustion chamber. Fuel adds heat to the compressed core air. The pulsing shapes represent combustion inside the chamber; this simplified model does not calculate temperatures."
+    },
+    {
+      "file": "1e854bdf10994d4e6e1e59ec1ade151e8d02611e0e75664f1f34214089ba63dc.mp3",
+      "lesson": "turbofan-lab",
+      "step": "turbine",
+      "text": "Two rotating spools. The hot flow turns turbine stages. One spool drives the core compressor; the other drives the fan. Watch their different illustrative rotation rates."
+    },
+    {
+      "file": "cc31aee91ec32cc5cd60b9bd3a961b1e5caa837f7240a9f28f725f4ec6983478.mp3",
+      "lesson": "turbofan-lab",
+      "step": "nozzle",
+      "text": "Exhaust and thrust. The core exhaust leaves through the nozzle while bypass air leaves around it. These flows contribute to thrust."
+    },
+    {
+      "file": "6efc91a34773f8d82003d821190534071ba4fa43d1a7770fcedaee79e4aa2401.mp3",
+      "lesson": "turbofan-lab",
+      "step": "inspect",
+      "text": "Inspect a stopped fan. Rotation is stopped for this exercise. One fan blade has a deliberately shortened tip. Look around the fan and tap the blade that differs from the others."
+    },
+    {
+      "file": "6a8ee670bfce9ad410441776f766d38970f713acf3f8a977e27df2abed8a4313.mp3",
+      "lesson": "gearbox-lab",
+      "step": "overview",
+      "text": "Follow the drive. The small input gear turns the larger output gear. These external gears turn in opposite directions."
+    },
+    {
+      "file": "7d2900a583d8b04de138bdcb918ef64a787042e11a5960ec2547944d6e5b217c.mp3",
+      "lesson": "gearbox-lab",
+      "step": "ratio",
+      "text": "Compare rotational speed. The output gear has twice as many teeth. Watch the input make two turns while the output makes one."
+    },
+    {
+      "file": "5e954e806fc9233d02f9558c5339947d6e8064ec3169d75bcdccec72fa59d283.mp3",
+      "lesson": "gearbox-lab",
+      "step": "bearings",
+      "text": "Inspect the supports. Bearings support the rotating shafts. Use the exploded view to separate the supports and see how the gears sit between them."
+    },
+    {
+      "file": "b912c6c89256af6bbb7709be873f543c7d4474d7114ca6dd1ec11b8ad6911aa5.mp3",
+      "lesson": "gearbox-lab",
+      "step": "inspect",
+      "text": "Find the damaged tooth. The drive is stopped. One tooth on the small gear is visibly shorter. Tap it to mark the finding."
+    }
+  ]
+}
