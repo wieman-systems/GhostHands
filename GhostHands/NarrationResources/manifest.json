@@ -274,6 +274,42 @@
       "lesson": "gearbox-lab",
       "step": "inspect",
       "text": "Find the damaged tooth. The drive is stopped. One tooth on the small gear is visibly shorter. Tap it to mark the finding."
+    },
+    {
+      "file": "b521ea20833c14ef01bc975ce02ad1cd867c07e33cf15282350caa5f413a3e09.mp3",
+      "lesson": "disc-brake-lab",
+      "step": "overview",
+      "text": "Explore a ventilated brake. The rotor turns with the wheel. Its two friction faces are separated by cooling vanes. Select the rotor, pads and caliper to see their roles."
+    },
+    {
+      "file": "f961062b6081fabe09c3f48b1513aac260b2694db3cd5372e1ecfe1ad863fed4.mp3",
+      "lesson": "disc-brake-lab",
+      "step": "clamp",
+      "text": "Apply and release the brake. Tap the caliper or choose Apply brake in Inspect. The pads move toward both rotor faces and rotation slows to a stop. Release the brake to let it turn again."
+    },
+    {
+      "file": "54da553043f1c5e8345e0aa90feba189c514c94acf9942788d3cce588a962b49.mp3",
+      "lesson": "disc-brake-lab",
+      "step": "layers",
+      "text": "Look between the friction faces. Open the exploded view to separate the hub, rotor and pad assembly. Look at the ventilation channels, mounting bolts and paired friction pads."
+    },
+    {
+      "file": "5829106f13dcc76d5d9d708dcbde21a4f9f9484c1ec66d8c60018636c725a668.mp3",
+      "lesson": "centrifugal-pump-lab",
+      "step": "overview",
+      "text": "Trace the water path. Water enters through the center of the pump. The rotating impeller moves it outward into the surrounding casing and toward the discharge port."
+    },
+    {
+      "file": "94048142a14211e8f7bbf34c860bdd0eeb0bb2add13717c7a4e3bcfef136dfec.mp3",
+      "lesson": "centrifugal-pump-lab",
+      "step": "operate",
+      "text": "Operate the impeller. Tap the impeller or choose Stop pump in Inspect. Rotation and the flow illustration stop together. Tap again to restart them."
+    },
+    {
+      "file": "50dbb6b2b9befa7171223435b38032122fdd0e8b9d4b169359c72ed2b9847d9a.mp3",
+      "lesson": "centrifugal-pump-lab",
+      "step": "layers",
+      "text": "Open the pump assembly. Use the exploded view to separate the front flange, impeller and back housing. Inspect the curved vanes, drive shaft and bolted casing."
     }
   ]
 }

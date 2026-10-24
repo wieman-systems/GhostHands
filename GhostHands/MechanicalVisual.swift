@@ -6,17 +6,18 @@ import simd
 @MainActor final class MechanicalVisual {
     let root=Entity()
     private var kind:MechanicalModel?
+    private var colored=false
     private var focus:EnginePart?
     private var parts:[EnginePart:[ModelEntity]]=[:]
     private let piston=Entity(),rod=Entity(),crank=Entity(),inlet=Entity(),exhaust=Entity()
     private var spark:ModelEntity?
     private var flow:[ModelEntity]=[]
     private var lid=Entity(),filter=Entity()
-    private func material(_ alpha:Float)->UnlitMaterial {
-        var m=UnlitMaterial(color:.white);m.blending = .transparent(opacity:.init(floatLiteral:alpha));return m
+    private func material(_ alpha:Float,part:EnginePart?=nil)->any Material {
+        ModelSurface.material(colored:colored,color:part == .inlet ? .systemBlue : part == .exhaust ? .systemOrange : part == .plug ? .systemYellow : part == .rod ? .systemGray : UIColor(white:0.72,alpha:1),alpha:alpha)
     }
     @discardableResult private func add(_ mesh:MeshResource,at p:SIMD3<Float>,to parent:Entity?=nil,alpha:Float=0.65,part:EnginePart?=nil)->ModelEntity {
-        let entity=ModelEntity(mesh:mesh,materials:[material(alpha)]);entity.position=p
+        let entity=ModelEntity(mesh:mesh,materials:[material(alpha,part:part)]);entity.position=p
         (parent ?? root).addChild(entity)
         if let part {
             entity.name="engine-part-"+part.rawValue
@@ -87,7 +88,8 @@ import simd
         let visible=model.placed && !model.adjustingPlacement && model.showGuides && [.engine,.cabinFilter].contains(model.course.mechanicalModel)
         root.isEnabled=visible;guard visible else{return}
         root.scale=SIMD3(repeating:model.modelScale);root.orientation=simd_quatf(angle:model.modelRotation,axis:[0,1,0])
-        if kind != model.course.mechanicalModel {
+        if kind != model.course.mechanicalModel || colored != model.coloredModels {
+            colored=model.coloredModels
             root.children.removeAll();for group in [piston,rod,crank,inlet,exhaust,lid,filter] {group.children.removeAll()}
             parts=[:];flow=[];spark=nil;focus=nil;kind=model.course.mechanicalModel
             if kind == .engine {buildEngine()} else {buildFilter()}
@@ -107,7 +109,7 @@ import simd
                 else if pose.stroke==3 {dot.position=[t*0.075,0.155+t*0.035,Float(i%3-1)*0.008]}
                 else {dot.position=[Float(i%4-2)*0.009,pose.piston.y+0.015+(0.165-pose.piston.y-0.015)*Float(i/4+1)/5,Float(i%3-1)*0.008]}
             }
-            if focus != model.engineFocus {focus=model.engineFocus;for (part,entities) in parts {for entity in entities {entity.model?.materials=[material(focus == nil || focus==part ? 0.90 : 0.18)]}}}
+            if focus != model.engineFocus {focus=model.engineFocus;for (part,entities) in parts {for entity in entities {entity.model?.materials=[material(focus == nil || focus==part ? 0.90 : 0.18,part:part)]}}}
         } else {
             let p=Float(min(1,max(0,progress))),id=model.currentStep.id
             let coverOut:Float=["remove","compare","insert"].contains(id) ? 1 : id=="cover" ? p : id=="replace-cover" ? 1-p : 0

@@ -36,3 +36,18 @@ struct TableCalibration {
         return false
     }
 }
+
+/// Reject relocalization jumps instead of rendering a workspace in a new place.
+struct WorkspaceLock {
+    private(set) var committed: simd_float4x4?
+    private(set) var needsReplacement=false
+    mutating func reset(_ transform:simd_float4x4?=nil) {committed=transform;needsReplacement=false}
+    mutating func accepts(_ transform:simd_float4x4)->Bool {
+        guard !needsReplacement,let original=committed else{return false}
+        let values=[transform.columns.0,transform.columns.1,transform.columns.2,transform.columns.3]
+        let delta=SIMD3<Float>(transform.columns.3.x-original.columns.3.x,transform.columns.3.y-original.columns.3.y,transform.columns.3.z-original.columns.3.z)
+        let alignment=simd_dot(SIMD3<Float>(transform.columns.2.x,transform.columns.2.y,transform.columns.2.z),SIMD3<Float>(original.columns.2.x,original.columns.2.y,original.columns.2.z))
+        guard values.allSatisfy({$0.x.isFinite && $0.y.isFinite && $0.z.isFinite && $0.w.isFinite}),simd_length(delta)<0.12,alignment>cos(Float.pi/12),transform.columns.1.y>0.96 else {needsReplacement=true;return false}
+        return true
+    }
+}

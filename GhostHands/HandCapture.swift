@@ -14,6 +14,32 @@ final class HandCapture {
     @ObservationIgnored private var left: TimedHand?
     @ObservationIgnored private var right: TimedHand?
 
+    @ObservationIgnored var onWorkspaceAnchor:((simd_float4x4?,Bool)->Void)?
+    @ObservationIgnored private var workspaceAnchorID:UUID?
+    @ObservationIgnored private var anchorRequest=UUID()
+    func clearWorkspaceAnchor() {
+        anchorRequest=UUID()
+        let old=workspaceAnchorID;workspaceAnchorID=nil
+        if let old,let world {Task {try? await world.removeAnchor(forID:old)}}
+    }
+    func anchorWorkspace(_ transform:simd_float4x4) {
+        clearWorkspaceAnchor()
+        #if !targetEnvironment(simulator)
+        guard let world,world.state == .running else {onWorkspaceAnchor?(nil,false);return}
+        let anchor=WorldAnchor(originFromAnchorTransform:transform),ticket=anchorRequest,sessionTicket=generation
+        workspaceAnchorID=anchor.id
+        tasks.append(Task { [weak self] in
+            do {
+                try await world.addAnchor(anchor)
+                guard let self,self.anchorRequest==ticket,self.generation==sessionTicket,!Task.isCancelled else {try? await world.removeAnchor(anchor);return}
+            } catch {
+                guard let self,self.anchorRequest==ticket,self.generation==sessionTicket else{return}
+                self.onWorkspaceAnchor?(nil,false)
+            }
+        })
+        #endif
+    }
+
     static let jointNames: [HandSkeleton.JointName] = [.wrist, .thumbKnuckle, .thumbIntermediateBase, .thumbIntermediateTip, .thumbTip,
         .indexFingerMetacarpal, .indexFingerKnuckle, .indexFingerIntermediateBase, .indexFingerIntermediateTip, .indexFingerTip,
         .middleFingerMetacarpal, .middleFingerKnuckle, .middleFingerIntermediateBase, .middleFingerIntermediateTip, .middleFingerTip,
@@ -62,17 +88,31 @@ final class HandCapture {
                 }
             })
             tasks.append(Task { [weak self] in
+                for await update in world.anchorUpdates {
+                    guard let self,token==self.generation,!Task.isCancelled else{break}
+                    guard update.anchor.id==self.workspaceAnchorID else{continue}
+                    self.onWorkspaceAnchor?(update.anchor.originFromAnchorTransform,update.event != .removed && update.anchor.isTracked)
+                }
+            })
+            tasks.append(Task { [weak self] in
                 for await event in session.events {
                     guard let self, token == self.generation, !Task.isCancelled else { break }
                     switch event {
                     case .authorizationChanged(_, let status) where status != .allowed:
-                        self.ready = false; self.clear(); self.status = "Tracking permission changed. Reopen the studio after allowing access."
+                        self.ready = false; self.clear(); self.onWorkspaceAnchor?(nil,false); self.status = "Tracking permission changed. Reopen the studio after allowing access."
                     case .dataProviderStateChanged(_, let state, let error):
                         if state == .running {
                             self.ready = hands.state == .running && world.state == .running
-                            if self.ready { self.status = "Tracking connected · keep your hands in view." }
+                            if self.ready {
+                                self.status = "Tracking connected · keep your hands in view."
+                                let request=self.anchorRequest
+                                if let id=self.workspaceAnchorID,let anchors=await world.allAnchors,
+                                   token==self.generation,request==self.anchorRequest,let anchor=anchors.first(where:{$0.id==id}) {
+                                    self.onWorkspaceAnchor?(anchor.originFromAnchorTransform,anchor.isTracked)
+                                }
+                            }
                         } else {
-                            self.ready = false; self.clear()
+                            self.ready = false; self.clear();if world.state != .running {self.onWorkspaceAnchor?(nil,false)}
                             self.status = error == nil ? "Tracking interrupted. Reopen the studio if it does not recover." : "Tracking stopped: \(error!.localizedDescription)"
                         }
                     default: break
@@ -93,7 +133,7 @@ final class HandCapture {
     }
     func clear() { left = nil; right = nil }
     func stop() {
-        generation = UUID(); tasks.forEach { $0.cancel() }; tasks.removeAll()
+        clearWorkspaceAnchor();generation = UUID(); tasks.forEach { $0.cancel() }; tasks.removeAll()
         session?.stop(); session = nil; world = nil; ready = false; clear()
     }
 }

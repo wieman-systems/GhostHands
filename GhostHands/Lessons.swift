@@ -27,7 +27,7 @@ struct LessonStep: Codable, Identifiable, Equatable {
     var reassembly: Bool = false
     var recordingID: UUID?
 }
-enum MechanicalModel:String,Codable {case engine,cabinFilter,jet,gearbox}
+enum MechanicalModel:String,Codable {case engine,cabinFilter,jet,gearbox,brake,pump}
 
 struct LessonDefinition: Codable, Identifiable, Equatable {
     var version = 1
@@ -92,7 +92,7 @@ enum LessonCatalog {
             s("exhaust","4 / Exhaust","The exhaust valve opens. The rising piston pushes spent gas out. Four strokes complete one cycle over two crankshaft revolutions.","Exhaust exits as the piston rises; Replay repeats this stroke.")
         ],mechanicalModel:.engine)
     }()
-    static var all:[LessonDefinition] {[boat,repair,engine,jet,gearbox]}
+    static var all:[LessonDefinition] {[boat,repair,engine,jet,gearbox,brake,pump]}
 }
 
 enum LessonStorage {

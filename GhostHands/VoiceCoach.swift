@@ -34,7 +34,7 @@ import Observation
     func run(_ model:StudioModel) async {
         self.model=model;seenNarration = -1;seenManual=model.manualNarrationRevision
         while !Task.isCancelled {
-            let active=model.immersive && model.interactionActive && model.placed && !model.busyRecording && !model.isAuthoring
+            let active=model.immersive && model.interactionActive && model.workspaceVisible && model.placed && !model.busyRecording && !model.isAuthoring
             if !active {pendingNarration=nil;stopSpeaking();if listening {stopListening()}}
             else {
                 if seenNarration != model.narrationRevision {seenNarration=model.narrationRevision;if !pendingManual || pendingStepKey != model.cueKey {pendingManual=false;pendingStepKey=model.cueKey;pendingNarration=model.automaticNarrationAllowed ? model.instructionToRead : nil;stopSpeaking();quietSince=Date()}}

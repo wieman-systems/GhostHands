@@ -18,6 +18,7 @@ final class StudioScene {
     let paper = PaperVisual()
     let mechanical = MechanicalVisual()
     let lab = LabVisual()
+    let detailed = DetailedVisual()
     let videoPanel = Entity()
     let human = HumanReplay()
 
@@ -30,13 +31,13 @@ final class StudioScene {
     var guideKey = ""
     init() {
         root.addChild(guides);root.addChild(moveControls)
-        root.addChild(paper.root);root.addChild(human.root);root.addChild(mechanical.root);root.addChild(lab.root);root.addChild(videoPanel)
+        root.addChild(paper.root);root.addChild(human.root);root.addChild(mechanical.root);root.addChild(lab.root);root.addChild(detailed.root);root.addChild(videoPanel)
         root.addChild(ghostLeft.root); root.addChild(ghostRight.root)
 
     }
     func render(model: StudioModel, frame: MotionFrame?, live: MotionFrame) {
         root.transform = Transform(matrix: model.workspace)
-        mechanical.update(model:model);lab.update(model)
+        mechanical.update(model:model);lab.update(model);detailed.update(model)
         videoPanel.position=[0,model.videoHeight,model.videoDepth];videoPanel.isEnabled=model.placed && model.dockedVideo && !model.adjustingPlacement
         let avatarFrame=model.busyRecording ? MotionFrame(time:live.time,left:live.left?.transformed(by:simd_inverse(model.workspace)),right:live.right?.transformed(by:simd_inverse(model.workspace))) : frame
         human.update(frame:avatarFrame,enabled:model.avatarEnabled && model.placed && (model.busyRecording || model.selected?.isIllustration == false),tableHeight:model.avatarTableHeight)
@@ -46,8 +47,8 @@ final class StudioScene {
         guides.isEnabled = model.showGuides || !model.placed || model.adjustingPlacement
         let key = "\(model.course.id)-\(String(describing:model.spatialCue))-\(model.step)-\(model.paperSide)-\(model.paperHeight)-\(model.placed)-\(model.placementReady)-\(model.adjustingPlacement)"
         if guideKey != key { guideKey = key; if !model.isPaperLesson && model.placed && !model.adjustingPlacement {drawCue(model.spatialCue)} else {drawGuide(step:model.lesson,width:model.placed ? model.paperSide : LetterPaper.width,height:model.placed ? model.paperHeight : LetterPaper.height,preview:!model.placed || model.adjustingPlacement,ready:model.placementReady || model.placed) }}
-        root.isEnabled = model.placed || model.placementReady
-        panels.isEnabled = model.placed && !model.adjustingPlacement
+        root.isEnabled = (model.placed || model.placementReady) && model.workspaceVisible
+        panels.isEnabled = model.placed && !model.adjustingPlacement && model.workspaceVisible
         panels.transform = Transform(matrix:model.workspace)
     }
     private func drawCue(_ cue:SpatialCue?) {
@@ -142,7 +143,7 @@ struct SpatialStudio: View {
             Attachment(id:"moveDone") {PaperMoveFinish()}
         }
         .gesture(SpatialTapGesture().targetedToAnyEntity().onEnded {value in
-            guard !model.busyRecording,!model.adjustingPlacement else{return}
+            guard model.workspaceVisible,!model.busyRecording,!model.adjustingPlacement else{return}
             if value.entity.name.hasPrefix("lab-") {model.selectLabPart(value.entity.name);return}
             guard model.course.mechanicalModel == .engine else{return}
             let prefix="engine-part-",name=value.entity.name
@@ -164,6 +165,9 @@ struct SpatialStudio: View {
         }
         .onChange(of:model.placed) { _,placed in if placed {dismissWindow(id:"home");if model.automaticVideo && model.currentStep.segment != nil {model.showVideo()}} else if model.immersive {openWindow(id:"home")} }
         .onChange(of:model.course.id) {_,_ in if !model.course.hasVideo {model.dockedVideo=false;dismissWindow(id:"video");model.videoClosed()}}
+        .onChange(of:model.trackingIssue) {_,issue in
+            if issue != nil {openWindow(id:"home")} else if model.placed {dismissWindow(id:"home")}
+        }
         .onDisappear { model.leftStudio() }
         .onChange(of:phase) { _,phase in if phase != .active { model.suspend() } else { model.resumeInteraction() } }
     }

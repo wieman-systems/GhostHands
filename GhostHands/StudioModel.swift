@@ -39,6 +39,20 @@ final class StudioModel {
     var showCasing=true
     var revealDefect=false
     var defectFound=false
+    var mechanismEngaged=false
+    var coloredModels=false {didSet {saveVisualPreferences()}}
+    var mechanismAngle:Float=0
+    var mechanismBlend:Float=0
+    func saveVisualPreferences() {
+        let url=storage.deletingLastPathComponent().appendingPathComponent("VisualPreferences.json")
+        do {try FileManager.default.createDirectory(at:url.deletingLastPathComponent(),withIntermediateDirectories:true);try JSONEncoder().encode(coloredModels).write(to:url,options:.atomic)} catch {self.error="Could not save model colors."}
+    }
+    var mechanismAction:String {course.mechanicalModel == .brake ? (mechanismEngaged ? "Release brake" : "Apply brake") : (mechanismEngaged ? "Start pump" : "Stop pump")}
+    func operateMechanism() {
+        guard placed,workspaceVisible,!busyRecording,!adjustingPlacement,!explodedView,[.brake,.pump].contains(course.mechanicalModel) else{return}
+        mechanismEngaged.toggle();mode = .playing;elapsed=0
+        status=course.mechanicalModel == .brake ? (mechanismEngaged ? "Brake applied · pads clamp the rotor." : "Brake released.") : (mechanismEngaged ? "Pump stopped." : "Pump running.")
+    }
     private var cueCalibration = TableCalibration()
     private var cueApproach: SIMD3<Float>?
     private var cueApproached = false
@@ -51,6 +65,9 @@ final class StudioModel {
     var showGuides = true
     var showHands = true
     var adjustingPlacement = false
+    var trackingIssue:String?
+    private var workspaceLock=WorkspaceLock()
+    var workspaceVisible:Bool {trackingIssue == nil && interactionActive}
     var placementProgress: Float = 0
     var avatarEnabled = false
     var avatarStatus = "Off"
@@ -95,6 +112,7 @@ final class StudioModel {
         if let data=try? Data(contentsOf:self.storage.deletingLastPathComponent().appendingPathComponent("NarrationPreferences.json")),let preferences=try? JSONDecoder().decode(NarrationPreferences.self,from:data) {
             narrationEnabled=preferences.enabled;repeatNarrationAfterVideo=preferences.repeatAfterVideo;naturalNarration=preferences.naturalVoice
         }
+        if let data=try? Data(contentsOf:self.storage.deletingLastPathComponent().appendingPathComponent("VisualPreferences.json")),let colored=try? JSONDecoder().decode(Bool.self,from:data) {coloredModels=colored}
         let result = ClipStorage.load(in: self.storage)
         clips = result.clips
         customLessons = LessonStorage.load(in:self.storage.deletingLastPathComponent().appendingPathComponent("GhostHandsLessons"))
@@ -127,20 +145,23 @@ final class StudioModel {
     func selectLabPart(_ name:String) {
         guard !busyRecording,!adjustingPlacement else{return}
         if name=="lab-defect",currentStep.id=="inspect" {defectFound=true;status="Finding marked: this example has a shortened \(course.mechanicalModel == .jet ? "blade tip" : "gear tooth")."}
-        else if name.hasPrefix("lab-part-") {labFocus=LabPart(rawValue:String(name.dropFirst(9)))}
+        else if name.hasPrefix("lab-part-") {labFocus=LabPart(rawValue:String(name.dropFirst(9)));if (course.mechanicalModel == .brake && labFocus == .caliper) || (course.mechanicalModel == .pump && labFocus == .impeller) {operateMechanism()}}
     }
     var progressDuration:Double {selected?.duration ?? currentStep.segment?.duration ?? 8}
 
-    var sourceLabel: String { selected?.isIllustration == false ? "Recorded hands" : isPaperLesson ? "Illustrated motion · not a recording" : course.mechanicalModel == .jet ? "Turbofan · teaching cutaway" : course.mechanicalModel == .gearbox ? "Gear drive · teaching assembly" : course.mechanicalModel == .engine ? "Engine cutaway · illustrative" : course.mechanicalModel == .cabinFilter ? "Manual cues + filter model" : "Manually placed spatial cues" }
+    var sourceLabel: String { selected?.isIllustration == false ? "Recorded hands" : isPaperLesson ? "Illustrated motion · not a recording" : course.mechanicalModel == .brake ? "Disc brake · interactive assembly" : course.mechanicalModel == .pump ? "Water pump · interactive assembly" : course.mechanicalModel == .jet ? "Turbofan · teaching cutaway" : course.mechanicalModel == .gearbox ? "Gear drive · teaching assembly" : course.mechanicalModel == .engine ? "Engine cutaway · illustrative" : course.mechanicalModel == .cabinFilter ? "Manual cues + filter model" : "Manually placed spatial cues" }
 
     func entered() async {
+        guard !immersive else{return}
         immersive = true; interactionActive = true; previousTick = 0; placed = false
+        capture.onWorkspaceAnchor = { [weak self] transform,tracked in self?.receiveWorkspaceAnchor(transform,tracked:tracked) }
         status = "Use Place to align the outline with your paper."
         beginPlacement()
         await capture.start()
         guard !Task.isCancelled, immersive else { return }
     }
     func leftStudio() {
+        capture.onWorkspaceAnchor=nil;workspaceLock.reset();trackingIssue=nil
         if mode == .recording { finishRecording() }
         pauseVideo();dockedVideo=false; cuePlacement=nil; mode = .paused; immersive = false; transitioning = false
         onRender = nil; capture.stop()
@@ -149,9 +170,11 @@ final class StudioModel {
         if mode == .recording { finishRecording() }
         pauseVideo();cuePlacement=nil;mode = .paused; calibration.reset(); interactionActive=false; capture.clear()
         placementReady = false
+        onRender?(nil,capture.snapshot(at:CACurrentMediaTime()),0)
     }
     func beginPlacement() {
         guard !busyRecording else { return }
+        capture.clearWorkspaceAnchor();workspaceLock.reset();trackingIssue=nil
         pauseVideo();cuePlacement=nil;mode = .paused; placed = false; placementReady = false
         fingerPlacement = false; calibration.reset(); placementReady = false; placementProgress=0;adjustingPlacement=false
         placed = false; tab = .placement
@@ -165,10 +188,11 @@ final class StudioModel {
     }
     func beginAdjustment() {
         guard placed,!busyRecording else{return}
-        pauseVideo();mode = .paused;adjustingPlacement=true
+        guard trackingIssue == nil else{return}
+        capture.clearWorkspaceAnchor();pauseVideo();mode = .paused;adjustingPlacement=true
     }
     func move(_ delta: SIMD3<Float>) {
-        guard !busyRecording else { return }
+        guard placed,adjustingPlacement,!busyRecording,delta.isFinite,simd_length(delta)<=0.025 else { return }
         position += simd_act(simd_quatf(angle: yaw, axis: [0,1,0]), delta)
     }
     func resizePaper(_ size: Float) {
@@ -193,7 +217,7 @@ final class StudioModel {
     }
     func chooseLesson(_ id:String) {
         guard !busyRecording,!hasUnsaved,lessons.contains(where:{$0.id==id}) else{return}
-        pauseVideo();isAuthoring=false;draft=nil;activeLessonID=id;trayContents=[];engineFocus=nil;labFocus=nil;explodedView=false;modelScale=1;modelRotation=0;setStep(0);tab = .lessons
+        pauseVideo();isAuthoring=false;draft=nil;activeLessonID=id;trayContents=[];engineFocus=nil;labFocus=nil;explodedView=false;modelScale=1;modelRotation=0;mechanismEngaged=false;mechanismAngle=0;mechanismBlend=0;loops=[.brake,.pump].contains(course.mechanicalModel);setStep(0);tab = .lessons
     }
     func sendVideo(seek:Bool,play:Bool,time:Double?=nil) {
         guard let link=YouTubeLink(course.videoURL) else{return}
@@ -214,7 +238,7 @@ final class StudioModel {
         if ended {elapsed=progressDuration;mode = .paused;if lastEndedSerial != serial {lastEndedSerial=serial;narrationRevision += 1}}
     }
     func applyVoice(_ command:VoiceCommand) {
-        guard immersive,placed,interactionActive,!busyRecording,!isAuthoring else{return}
+        guard immersive,placed,interactionActive,workspaceVisible,!busyRecording,!isAuthoring else{return}
         switch command {
         case .next:if step<stepCount-1 {setStep(step+1)}
         case .back:if step>0 {setStep(step-1)}
@@ -255,7 +279,7 @@ final class StudioModel {
         if let segment=currentStep.segment,video.visible {sendVideo(seek:true,play:false,time:segment.start+elapsed/max(progressDuration,0.01)*segment.duration)}
     }
     func beginRecording(now: Double = CACurrentMediaTime()) {
-        guard immersive, placed, !busyRecording, capture.ready, !saving, unsaved == nil else { return }
+        guard immersive, placed, workspaceVisible, !busyRecording, capture.ready, !saving, unsaved == nil else { return }
         let live = capture.snapshot(at: now)
         guard live.left != nil || live.right != nil else {
             status = "Bring at least one hand into view before recording."; return
@@ -298,6 +322,31 @@ final class StudioModel {
         paperSide = LetterPaper.width; paperHeight = LetterPaper.height
         setStep(step); tab = .learn; showGuides = true
         status = "Workspace placed. Follow the lesson, or record a demonstration."
+        lockWorkspace()
+    }
+    func lockWorkspace() {
+        workspaceLock.reset(workspace);trackingIssue=nil;capture.anchorWorkspace(workspace)
+    }
+    func finishAdjustment() {guard placed,adjustingPlacement else{return};adjustingPlacement=false;lockWorkspace()}
+    func rotateWorkspace(_ delta:Float) {guard placed,adjustingPlacement,!busyRecording,delta.isFinite,abs(delta)<=Float.pi/12 else{return};yaw += delta}
+    private func suspendForTracking() {
+        if mode == .recording {finishRecording()} else if mode == .countdown {cancelCountdown()}
+        pauseVideo();mode = .paused;cuePlacement=nil
+        onRender?(nil,capture.snapshot(at:CACurrentMediaTime()),0)
+    }
+    func receiveWorkspaceAnchor(_ transform:simd_float4x4?,tracked:Bool) {
+        guard immersive,placed,!adjustingPlacement else{return}
+        guard tracked,let transform else {
+            trackingIssue="Table tracking paused. Look at the table in good light. If it does not recover, choose Place Again."
+            suspendForTracking();return
+        }
+        guard workspaceLock.accepts(transform) else {
+            trackingIssue="A large tracking change was detected. The workspace is hidden to prevent a jump. Place it again on the table."
+            suspendForTracking();return
+        }
+        position=[transform.columns.3.x,transform.columns.3.y,transform.columns.3.z]
+        yaw=atan2(transform.columns.2.x,transform.columns.2.z)
+        trackingIssue=nil
     }
     func beginCuePlacement(_ target:String) {
         guard placed,!busyRecording else{return};pauseVideo();mode = .paused
@@ -333,6 +382,7 @@ final class StudioModel {
         previousTick = now
         let live = capture.snapshot(at: now)
         guard interactionActive else { return }
+        if trackingIssue != nil {onRender?(nil,live,0);return}
         if fingerPlacement && !placed {
             let gap:Float? = {
                 guard let thumb=live.left?.joints[4],let index=live.left?.joints[9] else{return nil}
@@ -342,12 +392,13 @@ final class StudioModel {
                 if approachOrigin == nil {approachOrigin=tip}
                 if let thumb=live.right?.joints[4],simd_distance(thumb,tip)>0.035,simd_distance(tip,approachOrigin!)>0.05 {approachedTable=true;calibration.reset()}
             }
-            let commit=calibration.update(rightTip:approachedTable ? live.right?.joints[9] : nil,leftGap:gap,now:now,automatic:true)
+            let head=capture.headTransform(),wasReady=calibration.ready
+            let commit=calibration.update(rightTip:approachedTable && head != nil ? live.right?.joints[9] : nil,leftGap:gap,now:now,automatic:true)
             placementProgress=calibration.progress
             placementReady=calibration.ready
             if let tip=calibration.candidate {
-                position=tip-SIMD3<Float>(0,0.008,0)
-                if !calibration.isCommitting && !commit, let head=capture.headTransform() {
+                position=tip+SIMD3<Float>(0,0.002,0)
+                if !wasReady && !commit, let head {
                     let direction=SIMD3<Float>(position.x-head.columns.3.x,0,position.z-head.columns.3.z)
                     if simd_length(direction)>0.1 {yaw=atan2(-direction.x,-direction.z)}
                 }
@@ -390,6 +441,11 @@ final class StudioModel {
                 if loops, progressDuration > 0 { elapsed.formTruncatingRemainder(dividingBy: progressDuration) }
                 else { elapsed = progressDuration; mode = .paused }
             }
+        }
+        if [.brake,.pump].contains(course.mechanicalModel),mode == .playing,!explodedView {
+            let target:Float=mechanismEngaged ? 1 : 0
+            mechanismBlend += (target-mechanismBlend)*min(1,Float(max(0,dt))*7)
+            mechanismAngle += Float(max(0,dt)*speed)*4*(1-mechanismBlend)
         }
         let frame = busyRecording || currentStep.staticPaper ? nil : selected?.sample(at: elapsed)
         onRender?(frame, live, Float(elapsed / max(selected?.duration ?? 1, 0.01)))

@@ -52,7 +52,11 @@ struct HomeView: View {
                 setupCard("02", "Touch the center", "Lift your right index, then rest its fingertip on the table in the center of that space.",icon:"hand.point.up.left")
                 setupCard("03", "Hold still", "Keep it there for two seconds. The paper and menus will appear around that point.",icon:"timer")
             }
-            if model.immersive && !model.placed {
+            if model.immersive,let issue=model.trackingIssue {
+                Text(issue).font(.headline).multilineTextAlignment(.center).frame(width:650)
+                Button("PLACE AGAIN") {model.beginPlacement();model.startFingerPlacement()}.buttonStyle(SquareButton(selected:true)).frame(width:360)
+                Button("LEAVE WORKSPACE") {Task {await dismissSpace()}}.buttonStyle(SquareButton()).frame(width:360)
+            } else if model.immersive && !model.placed {
                 if model.fingerPlacement {
                     Text(model.placementHint).font(.headline).multilineTextAlignment(.center)
                     ProgressView(value:Double(model.placementProgress)).tint(.white).frame(width:400)
@@ -75,7 +79,7 @@ struct HomeView: View {
                     model.previewConsumed=true;model.tab = ProcessInfo.processInfo.arguments.contains("--lessons-preview") ? .lessons : .settings
                     openWindow(id:"panel-preview");dismiss(id:"home");return
                 }
-                if ["--spatial-preview","--avatar-preview","--move-preview","--setup-preview","--sync-preview","--repair-preview","--author-preview","--engine-preview","--jet-preview","--gear-preview","--settings-preview","--lessons-preview"].contains(where:{ProcessInfo.processInfo.arguments.contains($0)}),!model.previewConsumed {
+                if ["--spatial-preview","--avatar-preview","--move-preview","--setup-preview","--sync-preview","--repair-preview","--author-preview","--engine-preview","--tracking-preview","--brake-preview","--pump-preview","--jet-preview","--gear-preview","--settings-preview","--lessons-preview"].contains(where:{ProcessInfo.processInfo.arguments.contains($0)}),!model.previewConsumed {
                     model.previewConsumed=true;model.automaticVideo=ProcessInfo.processInfo.arguments.contains("--video-preview") || ProcessInfo.processInfo.arguments.contains("--sync-preview")
                     let result=await open(id:"studio")
                     if case .opened=result {
@@ -88,6 +92,9 @@ struct HomeView: View {
                         if ProcessInfo.processInfo.arguments.contains("--engine-preview") {model.chooseLesson(LessonCatalog.engine.id);model.setStep(2);model.seek(3)}
                         if ProcessInfo.processInfo.arguments.contains("--jet-preview") {model.chooseLesson(LessonCatalog.jet.id);model.setStep(4);model.seek(2)}
                         if ProcessInfo.processInfo.arguments.contains("--gear-preview") {model.chooseLesson(LessonCatalog.gearbox.id);model.setStep(1);model.seek(2)}
+                        if ProcessInfo.processInfo.arguments.contains("--color-preview") {model.coloredModels=true}
+                        if ProcessInfo.processInfo.arguments.contains("--brake-preview") {model.chooseLesson(LessonCatalog.brake.id);model.loops=true}
+                        if ProcessInfo.processInfo.arguments.contains("--pump-preview") {model.chooseLesson(LessonCatalog.pump.id);model.loops=true}
                         if ProcessInfo.processInfo.arguments.contains("--settings-preview") {model.tab = .settings}
                         if ProcessInfo.processInfo.arguments.contains("--lessons-preview") {model.tab = .lessons}
                         if ProcessInfo.processInfo.arguments.contains("--author-preview") {model.beginAuthoring(blank:false);openWindow(id:"author")}
@@ -98,6 +105,11 @@ struct HomeView: View {
                         }
                         if ProcessInfo.processInfo.arguments.contains("--move-preview") {model.beginAdjustment()}
                         dismiss(id:"home")
+                        if ProcessInfo.processInfo.arguments.contains("--tracking-preview") {
+                            model.lockWorkspace();var shifted=model.workspace;shifted.columns.3.z += 2
+                            try? await Task.sleep(for:.milliseconds(600));model.receiveWorkspaceAnchor(shifted,tracked:true)
+                        }
+                        if ProcessInfo.processInfo.arguments.contains("--inspect-preview") {model.explodedView=true;model.mode = .paused}
                     }
                 }
                 #endif
@@ -135,7 +147,7 @@ struct LessonPanel: View {
                 VStack(alignment:.leading,spacing:6) {Text("FINISH SHAPE").font(.caption2.monospaced());PaperFinishDiagram(step:model.lesson).frame(height:110)}
             }.frame(height:130)
             } else {
-                VStack(spacing:10) {Image(systemName:model.course.mechanicalModel == .jet ? "airplane" : "wrench.and.screwdriver").font(.system(size:38));Text(model.course.object).font(.caption);Text(model.course.mechanicalModel == .jet ? "TURBOFAN INSPECTION LAB" : model.course.mechanicalModel == .gearbox ? "GEAR DRIVE LAB" : model.course.mechanicalModel == .engine ? "ANIMATED ENGINE CUTAWAY" : "MANUAL SPATIAL GUIDANCE").font(.caption2.monospaced())}.frame(maxWidth:.infinity).frame(height:130)
+                VStack(spacing:10) {Image(systemName:model.course.mechanicalModel == .jet ? "airplane" : "wrench.and.screwdriver").font(.system(size:38));Text(model.course.object).font(.caption);Text(model.course.mechanicalModel == .jet ? "TURBOFAN INSPECTION LAB" : model.course.mechanicalModel == .gearbox ? "GEAR DRIVE LAB" : model.course.mechanicalModel == .engine ? "ANIMATED ENGINE CUTAWAY" : [.brake,.pump].contains(model.course.mechanicalModel) ? "INTERACTIVE MECHANISM" : "MANUAL SPATIAL GUIDANCE").font(.caption2.monospaced())}.frame(maxWidth:.infinity).frame(height:130)
             }
             // Reserve a fixed reading area so the tabletop touch targets never move.
             ScrollView {
@@ -201,12 +213,13 @@ struct PlaybackControls: View {
                     ForEach(LabPart.available(for:model.course.mechanicalModel)){part in Button(part.title){model.labFocus=part}}
                 } label:{Label("PARTS",systemImage:"chevron.down")}.disabled(model.course.mechanicalModel == nil || model.course.mechanicalModel == .cabinFilter)
                 Menu {
-                    if [.jet,.gearbox].contains(model.course.mechanicalModel) {Button(model.explodedView ? "Assemble" : "Exploded view"){model.explodedView.toggle()}}
+                    if [.jet,.gearbox,.brake,.pump].contains(model.course.mechanicalModel) {Button(model.explodedView ? "Assemble" : "Exploded view"){model.explodedView.toggle()}}
+                    if [.brake,.pump].contains(model.course.mechanicalModel) {Button(model.mechanismAction) {model.operateMechanism()}.disabled(model.explodedView)}
                     Button("Rotate left"){model.modelRotation -= .pi/8}
                     Button("Rotate right"){model.modelRotation += .pi/8}
                     Button(model.modelScale>1 ? "Normal size" : "Enlarge"){model.modelScale=model.modelScale>1 ? 1 : 1.15}
-                    if [.engine,.jet].contains(model.course.mechanicalModel) {Button(model.showFlow ? "Hide flow" : "Show flow"){model.showFlow.toggle()}}
-                    if [.jet,.gearbox].contains(model.course.mechanicalModel) {Button(model.showCasing ? "Hide casing" : "Show casing"){model.showCasing.toggle()}}
+                    if [.engine,.jet,.pump].contains(model.course.mechanicalModel) {Button(model.showFlow ? "Hide flow" : "Show flow"){model.showFlow.toggle()}}
+                    if [.jet,.gearbox,.pump].contains(model.course.mechanicalModel) {Button(model.showCasing ? "Hide casing" : "Show casing"){model.showCasing.toggle()}}
                     if model.currentStep.id=="inspect" {Button(model.revealDefect ? "Hide hint" : "Reveal defect"){model.revealDefect.toggle()}}
                     Button("Reset view"){model.modelRotation=0;model.modelScale=1;model.explodedView=false;model.engineFocus=nil;model.labFocus=nil;model.revealDefect=false}
                 } label:{Label("INSPECT",systemImage:"chevron.down")}.disabled(model.course.mechanicalModel == nil || model.busyRecording)
@@ -288,7 +301,7 @@ struct PlacementPanel: View {
         VStack(alignment:.leading,spacing:10) {
             Text("Align the workspace").font(.headline)
             Text("Reposition reveals arrows. Move 1 cm or adjust height by 2 mm per tap.").font(.caption).lineLimit(2)
-            HStack {Button(model.adjustingPlacement ? "DONE" : "REPOSITION") {if model.adjustingPlacement {model.adjustingPlacement=false} else {model.beginAdjustment()}};Button("NEW SPOT") {model.beginPlacement()}}
+            HStack {Button(model.adjustingPlacement ? "DONE" : "REPOSITION") {if model.adjustingPlacement {model.finishAdjustment()} else {model.beginAdjustment()}};Button("NEW SPOT") {model.beginPlacement()}}
             if model.course.hasVideo {
                 Text("VIDEO POSITION").font(.caption.monospaced())
                 HStack {Button("LOWER") {model.videoHeight=max(0.24,model.videoHeight-0.025)};Button("HIGHER") {model.videoHeight=min(0.55,model.videoHeight+0.025)}}
@@ -307,10 +320,10 @@ struct PlacementPanel: View {
 struct SettingsPanel: View {
     @Environment(StudioModel.self) private var model
     @Environment(VoiceCoach.self) private var voice
-    @State private var section=0
+    @State private var section=ProcessInfo.processInfo.arguments.contains("--models-preview") ? 2 : 0
     var body:some View {
         VStack(alignment:.leading,spacing:9) {
-            HStack {Button("AUDIO") {section=0}.buttonStyle(SquareButton(selected:section==0));Button("SCENE") {section=1}.buttonStyle(SquareButton(selected:section==1))}
+            HStack {Button("AUDIO") {section=0}.buttonStyle(SquareButton(selected:section==0));Button("SCENE") {section=1}.buttonStyle(SquareButton(selected:section==1));Button("MODELS") {section=2}.buttonStyle(SquareButton(selected:section==2))}
             if section==0 {
                 Toggle("Auto-read steps",isOn:Binding(get:{model.narrationEnabled},set:{model.narrationEnabled=$0;model.narrationRevision += 1;if !$0 {voice.cancelNarration()}}))
                 Toggle("Repeat after video",isOn:Binding(get:{model.repeatNarrationAfterVideo},set:{model.repeatNarrationAfterVideo=$0;if !$0 {voice.cancelNarration()}}))
@@ -324,6 +337,13 @@ struct SettingsPanel: View {
                 Button(voice.listening ? "VOICE COMMANDS / ON" : "VOICE COMMANDS / OFF") {voice.toggle()}
                 Text(voice.status).font(.caption).lineLimit(2)
                 Text("Next · Back · Slow down · Show that again. During video, say “GhostHands” first.").font(.caption).lineLimit(3)
+            } else if section==2 {
+                Toggle("Colored models",isOn:Binding(get:{model.coloredModels},set:{model.coloredModels=$0}))
+                Text("Color adds metallic surfaces and distinct parts. Menus and hand guides stay black and white.").font(.caption)
+                Text("INTERACTIVE LABS").font(.caption.monospaced())
+                Text("Tap the brake caliper to clamp or release the rotor. Tap the pump impeller to start or stop it. Use Inspect for exploded views and rotation.").font(.system(size:14))
+                Button("DISC BRAKE LAB") {model.chooseLesson(LessonCatalog.brake.id)}
+                Button("WATER PUMP LAB") {model.chooseLesson(LessonCatalog.pump.id)}
             } else {
                 Toggle("Human replay",isOn:Binding(get:{model.avatarEnabled},set:{model.avatarEnabled=$0}))
                 Text("Record both hands for a mirrored person across the table.").font(.caption).lineLimit(2)
@@ -349,7 +369,7 @@ struct PaperMoveControl: View {
 struct PaperMoveFinish: View {
     @Environment(StudioModel.self) private var model
     var body:some View {
-        HStack {Button("↶") {model.yaw -= .pi/36};Button("DONE") {model.adjustingPlacement=false};Button("↷") {model.yaw += .pi/36}}
+        HStack {Button("↶") {model.rotateWorkspace(-.pi/36)};Button("DONE") {model.finishAdjustment()};Button("↷") {model.rotateWorkspace(.pi/36)}}
             .buttonStyle(SquareButton()).padding(10).frame(width:270).background(.black)
     }
 }

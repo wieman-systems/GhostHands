@@ -25,7 +25,7 @@ final class PlacementTests: XCTestCase {
         XCTAssertFalse(model.placementReady);XCTAssertFalse(model.placed)
         feed(1.4,0.05)
         XCTAssertTrue(model.placementReady)
-        XCTAssertEqual(model.position.y,0.632,accuracy:0.0001)
+        XCTAssertEqual(model.position.y,0.642,accuracy:0.0001)
         feed(1.45,0.01);XCTAssertFalse(model.placed)
         feed(1.61,0.01);XCTAssertFalse(model.placed)
         feed(2.81,0.05)

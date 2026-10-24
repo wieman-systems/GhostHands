@@ -5,6 +5,7 @@ import simd
 @MainActor final class LabVisual {
     let root=Entity()
     private var kind:MechanicalModel?
+    private var colored=false
     private var groups:[Entity]=[]
     private var rotors:[(Entity,Bool)]=[]
     private var particles:[ModelEntity]=[]
@@ -18,7 +19,7 @@ import simd
     private var gearA=Entity(),gearB=Entity()
     private func mat(_ alpha:Float)->UnlitMaterial {var m=UnlitMaterial(color:.white);m.blending = .transparent(opacity:.init(floatLiteral:alpha));return m}
     @discardableResult private func add(_ mesh:MeshResource,_ position:SIMD3<Float>,to parent:Entity?=nil,alpha:Float=0.65,part:LabPart?=nil)->ModelEntity {
-        let e=ModelEntity(mesh:mesh,materials:[mat(alpha)]);e.position=position;(parent ?? root).addChild(e)
+        let e=ModelEntity(mesh:mesh,materials:[ModelSurface.material(colored:colored,color:ModelSurface.color(part),alpha:alpha)]);e.position=position;(parent ?? root).addChild(e)
         if let part {e.name="lab-part-"+part.rawValue;e.generateCollisionShapes(recursive:false);e.components.set(InputTargetComponent());e.components.set(HoverEffectComponent());named[part,default:[]].append(e)}
         return e
     }
@@ -41,7 +42,7 @@ import simd
         for i in 0..<count {
             let a=Float(i)*2*Float.pi/Float(count)
             let isDefect=damage && i==3,span=radius*(isDefect ? 0.40 : 0.67)
-            let blade=add(.generateBox(width:0.006,height:span,depth:radius*0.15),[0,cos(a)*(radius*0.3+span/2),sin(a)*(radius*0.3+span/2)],to:disk,alpha:spinning ? 0.80 : 0.30,part:part)
+            let blade=add(ModelSurface.blade(span:span,chord:radius*0.25),[0,cos(a)*radius*0.3,sin(a)*radius*0.3],to:disk,alpha:spinning ? 0.80 : 0.30,part:part)
             blade.orientation=simd_quatf(angle:a,axis:[1,0,0])*simd_quatf(angle:spinning ? 0.35 : -0.25,axis:[0,1,0])
             if isDefect {defect=blade;blade.name="lab-defect"}
         }
@@ -103,7 +104,7 @@ import simd
     func update(_ model:StudioModel) {
         let visible=model.placed && !model.adjustingPlacement && model.showGuides && [.jet,.gearbox].contains(model.course.mechanicalModel)
         root.isEnabled=visible;guard visible else{return}
-        if kind != model.course.mechanicalModel {root.children.removeAll();groups=[];rotors=[];particles=[];flames=[];named=[:];defect=nil;previousFocus=nil;lastReveal=false;kind=model.course.mechanicalModel
+        if kind != model.course.mechanicalModel || colored != model.coloredModels {colored=model.coloredModels;root.children.removeAll();groups=[];rotors=[];particles=[];flames=[];named=[:];defect=nil;previousFocus=nil;lastReveal=false;kind=model.course.mechanicalModel
             if kind == .jet {buildJet()} else {buildGearbox()}
             let halo=ModelEntity(mesh:.generateSphere(radius:0.014),materials:[mat(0.20)]);defect?.addChild(halo);halo.isEnabled=false;defectHalo=halo
         }
@@ -122,7 +123,7 @@ import simd
         }
         if previousFocus != model.labFocus || lastReveal != (model.revealDefect || model.defectFound) {
             previousFocus=model.labFocus;lastReveal=model.revealDefect || model.defectFound
-            for (part,entities) in named {for e in entities {e.model?.materials=[mat(lastReveal ? 0.12 : (model.labFocus == nil || model.labFocus==part ? 0.8 : 0.12))]}}
+            for (part,entities) in named {for e in entities {e.model?.materials=[ModelSurface.material(colored:colored,color:ModelSurface.color(part),alpha:lastReveal ? 0.12 : (model.labFocus == nil || model.labFocus==part ? 0.8 : 0.12))]}}
             defectHalo?.isEnabled=lastReveal
             if lastReveal {defect?.model?.materials=[UnlitMaterial(color:.white)]}
         }

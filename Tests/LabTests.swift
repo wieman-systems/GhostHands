@@ -17,7 +17,7 @@ final class LabTests:XCTestCase {
     }
 
     func testLabLessonsAreValidAndNeverInventVideoTiming() {
-        for lesson in [LessonCatalog.jet,LessonCatalog.gearbox] {
+        for lesson in [LessonCatalog.jet,LessonCatalog.gearbox,LessonCatalog.brake,LessonCatalog.pump] {
             XCTAssertTrue(lesson.isValid);XCTAssertFalse(lesson.hasVideo)
             XCTAssertTrue(lesson.steps.allSatisfy{$0.segment==nil && $0.paperIndex==nil})
         }
