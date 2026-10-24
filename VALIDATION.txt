@@ -1,3 +1,24 @@
+BUILD 16 — OCTOBER 24, 2026
+PASS: 93 core tests, including five new haptics input/protocol tests.
+PASS: Release device and Debug simulator builds for Vision Pro and the iPhone /
+Watch companion targets. Strict signed package verification before and after ZIP
+extraction. iPhone app and Watch settings rendered; pairing start UI exercised.
+PASS: Physical Vision Pro and iPhone installation and launch, independently
+confirmed as bundle version 16. All 16 pre-update Documents files preserved.
+FIXED: Initial generic phone profile lacked the phone; targeted signing added it.
+Incremental profile refresh invalidated the resource seal; a fresh signed build
+was verified, reinstalled and launched successfully. No remaining phone trust
+block was observed after that clean rebuild.
+REVIEW: Corrected mixed clocks in acknowledgement cleanup, enabled-toggle
+synchronization after backgrounding, consumed dropped pulse IDs, and fenced
+callbacks from retired discovery sessions. Left-hand gesture completion clears
+per-press state. Normal app button actions are retained.
+PENDING: Watch development connection/installation, actual left/right button
+routing on the worn headset, paired Watch messages, haptic onset and round-trip
+latency. No watchOS simulator runtime is installed. Feature is off by default.
+LIMITS: iPhone visible and Watch app frontmost; no background pulse queue.
+Custom GhostHands buttons only. Watch wrist click is not fingertip force feedback.
+
 BUILD 15 — OCTOBER 24, 2026
 PASS: 88 core tests and 8 player-controller scenarios. New tests cover bounded
 pinch scaling, head-facing transforms under rotated workspace coordinates,

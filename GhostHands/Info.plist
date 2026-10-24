@@ -20,8 +20,14 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_gh-haptics._tcp</string>
+	</array>
 	<key>NSHandsTrackingUsageDescription</key>
 	<string>GhostHands records your hand joints so you can teach a skill and replay it over a table. Recordings stay on this device.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>GhostHands connects to your iPhone to relay optional left-hand button haptics to your Apple Watch.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>GhostHands listens for commands such as next, pause and slow down when you enable Voice.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

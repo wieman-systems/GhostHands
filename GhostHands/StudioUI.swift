@@ -17,6 +17,7 @@ struct SquareButton: ButtonStyle {
             .background(selected ? Color.white : Color.white.opacity(configuration.isPressed ? 0.24 : 0.06))
             .overlay(Rectangle().stroke(.white.opacity(selected ? 1 : 0.25),lineWidth:1))
             .contentShape(Rectangle()).opacity(enabled ? 1 : 0.35).hoverEffect(.highlight)
+            .modifier(LeftWatchFeedback(pressed:configuration.isPressed,enabled:enabled))
     }
 }
 struct DeskCard<Content: View>: View {
@@ -322,10 +323,10 @@ struct PlacementPanel: View {
 struct SettingsPanel: View {
     @Environment(StudioModel.self) private var model
     @Environment(VoiceCoach.self) private var voice
-    @State private var section=ProcessInfo.processInfo.arguments.contains("--models-preview") ? 2 : 0
+    @State private var section=ProcessInfo.processInfo.arguments.contains("--watch-preview") ? 3 : ProcessInfo.processInfo.arguments.contains("--models-preview") ? 2 : 0
     var body:some View {
         VStack(alignment:.leading,spacing:9) {
-            HStack {Button("AUDIO") {section=0}.buttonStyle(SquareButton(selected:section==0));Button("SCENE") {section=1}.buttonStyle(SquareButton(selected:section==1));Button("MODELS") {section=2}.buttonStyle(SquareButton(selected:section==2))}
+            HStack {Button("AUDIO") {section=0}.buttonStyle(SquareButton(selected:section==0));Button("SCENE") {section=1}.buttonStyle(SquareButton(selected:section==1));Button("MODELS") {section=2}.buttonStyle(SquareButton(selected:section==2));Button("WATCH") {section=3}.buttonStyle(SquareButton(selected:section==3))}
             if section==0 {
                 Toggle("Auto-read steps",isOn:Binding(get:{model.narrationEnabled},set:{model.narrationEnabled=$0;model.narrationRevision += 1;if !$0 {voice.cancelNarration()}}))
                 Toggle("Repeat after video",isOn:Binding(get:{model.repeatNarrationAfterVideo},set:{model.repeatNarrationAfterVideo=$0;if !$0 {voice.cancelNarration()}}))
@@ -339,6 +340,8 @@ struct SettingsPanel: View {
                 Button(voice.listening ? "VOICE COMMANDS / ON" : "VOICE COMMANDS / OFF") {voice.toggle()}
                 Text(voice.status).font(.caption).lineLimit(2)
                 Text("Next · Back · Slow down · Show that again. During video, say “GhostHands” first.").font(.caption).lineLimit(3)
+            } else if section==3 {
+                WatchHapticsPanel()
             } else if section==2 {
                 Toggle("Colored models",isOn:Binding(get:{model.coloredModels},set:{model.coloredModels=$0}))
                 Text("Color adds metallic surfaces and distinct parts. Menus and hand guides stay black and white.").font(.caption)

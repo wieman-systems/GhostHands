@@ -169,3 +169,11 @@ Three original selectable teaching assemblies were added, each with three steps,
 Titles and publishers for these and the four previously assigned references were checked through YouTube oEmbed on October 24, 2026; metadata is in `VideoReferences.json`. The new videos explain the same mechanisms and run independently, without invented step timestamps. The model geometry is illustrative rather than a replica of each video's CAD or a repair specification. Existing user-selected video overrides are preserved.
 
 ![Symmetric controls and crank-slider — simulator](Crank-Build15.png)
+
+## Build 16 — optional Watch feedback
+
+Left-hand presses on custom GhostHands buttons can send a short click through an
+iPhone relay to a paired Apple Watch. Enable it in **Settings → Watch**.
+[Companion setup and current limits](Companion/README.md). Vision Pro and iPhone
+build 16 are installed and launched; actual Watch installation and haptic latency
+are not yet verified. 93 core tests pass.
