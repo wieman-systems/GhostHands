@@ -1,3 +1,25 @@
+BUILD 11 — OCTOBER 24, 2026
+PASS: 65 core tests and 8 player-controller scenarios. New checks cover anchor
+corrections/jumps/rotation/NaN, latched recovery, loss during countdown and
+recording, stable heading, tracked head requirement, duplicate entry, guarded
+movement, persisted colors, brake/pump actions and continuous pump flow.
+PASS: Release device and Debug simulator builds; strict codesign verification
+of the original and the Build11 ZIP extracted outside iCloud.
+PASS: All 51 bundled narration clips decoded and matched to lesson instructions.
+PASS: Rendered colored brake/pump assemblies, Models settings and a simulated
+large-jump recovery screen. All tabletop content hides; Place Again / Leave
+Workspace remain reachable. Pump front covers do not intercept impeller taps.
+PASS: Physical build 11 installed, launched and independently version-checked.
+Documents and Library backed up. All 12 prior Documents files preserved:
+11 hash-identical; narration preferences semantically identical with reordered
+JSON keys. No other app changed or removed.
+NOT VERIFIED: Worn-headset relocalization, final height/contact, actual gaze/
+hand targeting, comfort, frame rate and perceived materials/audio quality.
+The reported jump was not reproduced on hardware. World anchors and bounded
+corrections address the inferred raw-coordinate failure; OS tracking can still
+require recovery. New models are procedural teaching assemblies, not scans or
+manufacturer CAD. Sources and controls are documented in README.md.
+
 BUILD 10 — OCTOBER 24, 2026
 PASS: 57 core tests and 8 JavaScript player scenarios. New checks cover lab
 lesson validity, gear ratio/flow, narration policy/preferences, asset coverage,

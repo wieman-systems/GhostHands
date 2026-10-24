@@ -110,3 +110,7 @@ The committed workspace uses an [ARKit world anchor](https://developer.apple.com
 Colored mode uses physically based metallic materials, with translucent cutaway surfaces where needed. The original monochrome hologram mode remains available. Jet blades now use swept, tapered geometry. The brake includes annular rotor faces, cooling vanes, hub bolts, pads and caliper pistons. The pump includes curved vanes, an open casing, shaft and flanges. These original procedural assemblies illustrate mechanisms; they are not manufacturer CAD, scanned assets or maintenance instructions. Concept references: [Brembo ventilation](https://asia.bremboparts.com/america/en/support/car/how-to-choose-the-right-product/brake-rotors-with-vane-vs-pillar-ventilation-the-differences-204921), [Grundfos impeller and volute](https://www.grundfos.com/ca/learn/ecademy/all-courses/centrifugal-pump-theory/impeller-and-volute-function).
 
 Use Lessons to choose the new assemblies. Tap the caliper/impeller or use Inspect → Apply brake / Stop pump. Exploded mode separates the assemblies and disables operation until reassembled. Speed and Pause control their motion. Color is saved between launches.
+
+![Colored disc-brake assembly — simulator](Brake-Build11.png)
+
+![Colored pump assembly — simulator](Pump-Build11.png)
