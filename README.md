@@ -78,7 +78,7 @@ swift test --scratch-path /tmp/GhostHandsTests --disable-sandbox
 node Scripts/player-controller-tests.cjs
 ```
 
-Build 13: 79 core tests and 8 player-controller scenarios passed. Device and simulator builds succeeded. New tests verify universal video access, custom-video timing isolation, independent transport, sync toggling, persistent choices and reference reconciliation across lesson/recording changes. Live player and installation results are in `VALIDATION.txt`. Worn-headset reach and audio still require user testing.
+Build 14: 82 core tests and 8 player-controller scenarios passed. Device and simulator builds succeeded. New tests verify universal video access, custom-video timing isolation, independent transport, sync toggling, persistent choices and reference reconciliation across lesson/recording changes. Live player and installation results are in `VALIDATION.txt`. Worn-headset reach and audio still require user testing.
 
 ## Data and assets
 
@@ -122,9 +122,9 @@ Use Lessons to choose the new assemblies. Tap the caliper/impeller or use Inspec
 
 Select **More → Open YouTube** on the playback panel, or **Settings → Scene → Open YouTube**. The jet lab opens [Safran’s explanation](https://www.youtube.com/watch?v=kz5kv0RfeUc). Other lessons retain their original references or show a video chooser. **More → Choose Video → Enter a YouTube link** loads a custom reference without modifying the authored lesson. **Find videos on YouTube** opens an external YouTube search when no reference is selected. Choices stay on device in ReferenceVideos.json.
 
-The centered video toolbar has Play/Pause, Replay, More and Close in one row. These transport controls operate the video; model playback stays on the tabletop playback panel or in the video’s More menu. Next, Replay, model speed and model scrubbing do not seek or truncate an independent video. A custom video never inherits origami timestamps. Paper/filter lessons still offer Step Sync for their original references; switch it off to watch freely. Closing or failing an independent video leaves the model running. Narration continues to defer while video audio is playing.
+YouTube controls live below the right workspace panel. Play/Pause and Replay operate the video; model playback stays on the tabletop playback panel. Next, Replay, model speed and model scrubbing do not seek or truncate an independent video. A custom video never inherits origami timestamps. Paper/filter lessons still offer Step Sync for their original references; switch it off to watch freely. Closing or failing an independent video leaves the model running. Narration continues to defer while video audio is playing.
 
-The video remains docked behind the workspace; use More → Video Size to enlarge it. Position adjustments are available under Place while the panel is open. Opening YouTube enables looping for mechanical labs; the playback More menu can turn looping off. Embedding still depends on the selected creator’s YouTube settings and network access.
+The video remains docked behind the workspace; use the YouTube controls’ More → Video Size to enlarge it. Position adjustments are available under Place while the panel is open. Opening YouTube enables looping for mechanical labs; the playback More menu can turn looping off. Embedding still depends on the selected creator’s YouTube settings and network access.
 
 ## Simpler controls and smoother playback (build 13)
 
@@ -135,3 +135,19 @@ Bundled lesson validation is cached instead of repeated during rendering. Hand s
 A local optimized core benchmark (1,000 ticks per case, no RealityKit/GPU) measured boat 0.319 → 0.00275 ms/tick, cabin-filter 0.289 → 0.00174, recorded playback 0.314 → 0.00274. This measures model/lookup work, not headset frame rate. Worn-headset smoothness still needs confirmation.
 
 ![Centered video controls — simulator](YouTube-Build13.png)
+
+## Tabletop video controls and continuous folds (build 14)
+
+The right workspace panel and YouTube controls form a fixed **470 × 820** column (590 + 12 gap + 218). The left lesson panel uses the same outer dimensions. Video controls remain reachable on the table when the floating screen is enlarged or moved.
+
+- **Move:** look at the screen, pinch and drag it in 3D, then tap **Done** to lock its position. Movement changes only the screen’s offset from the anchored workspace. **More → Reset video position** returns it above the paper.
+- **Video Only:** removes the app title and frame and enlarges the screen. Playback controls remain on the table. **Framed** restores the title. **More → Video Size** offers additional sizes. Moving/resizing does not recreate or seek the player. YouTube retains control of its own branding, ads and other service overlays.
+- The presentation embed uses YouTube’s supported `controls=0`; standalone authoring retains its native timeline for marking tutorial segments.
+
+RealityKit frame events now drive playback instead of a work-plus-16-ms sleep loop. Paper vertices update continuously in one reusable LowLevelMesh; the former 45-pose quantization and repeated mesh creation are removed. Existing recording interpolation, missing-hand gaps, anchor recovery and pause rules remain in force.
+
+API references: [Apple LowLevelMesh](https://developer.apple.com/documentation/realitykit/lowlevelmesh), [Apple spatial gestures](https://developer.apple.com/videos/play/wwdc2023/10113/), [YouTube player parameters](https://developers.google.com/youtube/player_parameters).
+
+![Matched tabletop panels — simulator](Workspace-Build14.png)
+
+![Moved video-only screen — simulator](VideoOnly-Build14.png)

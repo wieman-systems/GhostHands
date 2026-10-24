@@ -20,6 +20,8 @@ final class StudioScene {
     let lab = LabVisual()
     let detailed = DetailedVisual()
     let videoPanel = Entity()
+    let videoDragTarget=ModelEntity()
+    var frameSubscription:EventSubscription?
     let human = HumanReplay()
 
     func loadHands() async throws {
@@ -33,12 +35,27 @@ final class StudioScene {
         root.addChild(guides);root.addChild(moveControls)
         root.addChild(paper.root);root.addChild(human.root);root.addChild(mechanical.root);root.addChild(lab.root);root.addChild(detailed.root);root.addChild(videoPanel)
         root.addChild(ghostLeft.root); root.addChild(ghostRight.root)
+        videoDragTarget.name="video-move"
+        videoDragTarget.model=ModelComponent(mesh:.generateBox(size:1),materials:[ghostMaterial(.white.withAlphaComponent(0.08))])
+        videoDragTarget.components.set(CollisionComponent(shapes:[.generateBox(size:[1,1,1])]))
+        videoDragTarget.components.set(InputTargetComponent())
+        videoDragTarget.components.set(HoverEffectComponent())
+        videoDragTarget.isEnabled=false;videoPanel.addChild(videoDragTarget)
 
     }
     func render(model: StudioModel, frame: MotionFrame?, live: MotionFrame) {
         root.transform = Transform(matrix: model.workspace)
         mechanical.update(model:model);lab.update(model);detailed.update(model)
-        videoPanel.position=[0,model.videoHeight,model.videoDepth];videoPanel.children.first?.scale=SIMD3(repeating:model.videoScale);videoPanel.isEnabled=model.placed && model.dockedVideo && !model.adjustingPlacement
+        videoPanel.position=model.videoPosition
+        videoPanel.orientation=simd_quatf(angle:model.videoYaw,axis:[0,1,0])
+        if let screen=videoPanel.children.first(where:{$0 !== videoDragTarget}) {
+            screen.scale=SIMD3(repeating:model.videoScale)
+            let bounds=screen.visualBounds(relativeTo:videoPanel)
+            videoDragTarget.position=[bounds.center.x,bounds.center.y,bounds.max.z+0.012]
+            videoDragTarget.scale=[max(0.05,bounds.extents.x),max(0.05,bounds.extents.y),0.012]
+        }
+        videoDragTarget.isEnabled=model.movingVideo && model.workspaceVisible
+        videoPanel.isEnabled=model.placed && model.dockedVideo && !model.adjustingPlacement
         let avatarFrame=model.busyRecording ? MotionFrame(time:live.time,left:live.left?.transformed(by:simd_inverse(model.workspace)),right:live.right?.transformed(by:simd_inverse(model.workspace))) : frame
         human.update(frame:avatarFrame,enabled:model.avatarEnabled && model.placed && (model.busyRecording || model.selected?.isIllustration == false),tableHeight:model.avatarTableHeight)
         moveControls.isEnabled=model.placed && model.adjustingPlacement
@@ -107,7 +124,8 @@ struct SpatialStudio: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.scenePhase) private var phase
     @State private var scene = StudioScene()
-    var body: some View {
+    @State private var videoDragOrigin:SIMD3<Float>?
+    private var spatialContent:some View {
         RealityView { content, attachments in
             content.add(scene.root); content.add(scene.panels)
             for (id,position) in [("lesson",SIMD3<Float>(-0.30,0.002,0)),("transport",SIMD3<Float>(0,0.002,-0.25)),("tools",SIMD3<Float>(0.30,0.002,0)),("tray",SIMD3<Float>(0,0.002,0.27)),("cueLabel",SIMD3<Float>(0,0.002,0.13))] {
@@ -125,15 +143,19 @@ struct SpatialStudio: View {
             }
             do { try await scene.loadHands() } catch { model.error="Could not load the hand holograms: \(error.localizedDescription)" }
             model.onRender = { [scene, model] frame, live, _ in scene.render(model:model,frame:frame,live:live) }
+            scene.frameSubscription?.cancel()
+            scene.frameSubscription=content.subscribe(to:SceneEvents.Update.self) { [weak model] _ in
+                MainActor.assumeIsolated {model?.tick()}
+            }
         } attachments: {
             Attachment(id:"dockedVideo") {
-                Group {if model.dockedVideo {VideoReference(embedded:true)} else {Color.clear.frame(width:800,height:650)}}
+                Group {if model.dockedVideo {VideoReference(embedded:true)} else {Color.clear.frame(width:800,height:450)}}
             }
             Attachment(id:"tray") {PartsTray().opacity(model.course.trayLabels.isEmpty ? 0 : 1).allowsHitTesting(!model.course.trayLabels.isEmpty)}
-            Attachment(id:"cueLabel") {Text(model.spatialCue?.label ?? "Place a marker in Place").font(.caption).padding(10).background(.black).foregroundStyle(.white).opacity(model.isPaperLesson || model.spatialCue == nil ? 0 : 1).allowsHitTesting(false)}
+            Attachment(id:"cueLabel") {SpatialCueLabel()}
             Attachment(id:"lesson") { LessonPanel() }
             Attachment(id:"transport") { PlaybackControls() }
-            Attachment(id:"tools") { SpatialControls() }
+            Attachment(id:"tools") {RightWorkspacePanel()}
             Attachment(id:"moveLeft") {PaperMoveControl(label:"← LEFT",delta:[-0.01,0,0])}
             Attachment(id:"moveRight") {PaperMoveControl(label:"RIGHT →",delta:[0.01,0,0])}
             Attachment(id:"moveAway") {PaperMoveControl(label:"↑ AWAY",delta:[0,0,-0.01])}
@@ -142,20 +164,27 @@ struct SpatialStudio: View {
             Attachment(id:"moveDown") {PaperMoveControl(label:"− HEIGHT",delta:[0,-0.002,0])}
             Attachment(id:"moveDone") {PaperMoveFinish()}
         }
-        .gesture(SpatialTapGesture().targetedToAnyEntity().onEnded {value in
+    }
+    private var interactiveScene:some View {
+        spatialContent.gesture(SpatialTapGesture().targetedToAnyEntity().onEnded {value in
             guard model.workspaceVisible,!model.busyRecording,!model.adjustingPlacement else{return}
             if value.entity.name.hasPrefix("lab-") {model.selectLabPart(value.entity.name);return}
             guard model.course.mechanicalModel == .engine else{return}
             let prefix="engine-part-",name=value.entity.name
             if name.hasPrefix(prefix) {model.engineFocus=EnginePart(rawValue:String(name.dropFirst(prefix.count)))}
         })
-        .task {
-            await model.entered()
-            while !Task.isCancelled {
-                model.tick()
-                try? await Task.sleep(for:.milliseconds(16))
-            }
-        }
+        .simultaneousGesture(DragGesture(minimumDistance:2).targetedToEntity(scene.videoDragTarget)
+            .onChanged {value in
+                guard model.movingVideo,model.workspaceVisible else {videoDragOrigin=nil;return}
+                if videoDragOrigin==nil {videoDragOrigin=model.videoPosition}
+                let delta=value.convert(value.translation3D,from:.local,to:scene.root)
+                model.moveVideo(to:videoDragOrigin!+delta)
+            }.onEnded {_ in videoDragOrigin=nil})
+        .onChange(of:model.movingVideo) {_,_ in videoDragOrigin=nil}
+        .onChange(of:model.workspaceVisible) {_,visible in if !visible {model.movingVideo=false;videoDragOrigin=nil}}
+    }
+    var body:some View {
+        interactiveScene.task {await model.entered()}
         .task {await voice.run(model)}
         .task(id:model.avatarEnabled) {
             guard model.avatarEnabled else {model.avatarStatus="Off";return}
@@ -167,7 +196,18 @@ struct SpatialStudio: View {
         .onChange(of:model.trackingIssue) {_,issue in
             if issue != nil {openWindow(id:"home")} else if model.placed {dismissWindow(id:"home")}
         }
-        .onDisappear { model.leftStudio() }
+        .onDisappear {scene.frameSubscription?.cancel();scene.frameSubscription=nil;videoDragOrigin=nil;model.movingVideo=false;model.leftStudio()}
         .onChange(of:phase) { _,phase in if phase != .active { model.suspend() } else { model.resumeInteraction() } }
     }
+}
+
+struct SpatialCueLabel:View {
+    @Environment(StudioModel.self) private var model
+    var body:some View {
+        Text(model.spatialCue?.label ?? "Place a marker in Place").font(.caption).padding(10).background(.black).foregroundStyle(.white)
+            .opacity(model.isPaperLesson || model.spatialCue == nil ? 0 : 1).allowsHitTesting(false)
+    }
+}
+struct RightWorkspacePanel:View {
+    var body:some View {VStack(spacing:12) {SpatialControls();VideoControlPanel()}.frame(width:470,height:820)}
 }

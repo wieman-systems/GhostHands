@@ -22,13 +22,14 @@ struct SquareButton: ButtonStyle {
 struct DeskCard<Content: View>: View {
     @Environment(\.compactControls) private var compact
     let title: String
+    var height:CGFloat?=nil
     @ViewBuilder var content: Content
     var body: some View {
         VStack(alignment:.leading,spacing:compact ? 10 : 18) {
             HStack { Text(title).font(.system(size:12,weight:.semibold,design:.monospaced)).tracking(2); Spacer(); Image(systemName:"plus").font(.caption) }
             Rectangle().fill(.white.opacity(0.25)).frame(height:1)
             content
-        }.padding(compact ? 16 : 24).frame(maxWidth:.infinity,alignment:.topLeading).foregroundStyle(.white).background(.black.opacity(0.96))
+        }.padding(compact ? 16 : 24).frame(maxWidth:.infinity,alignment:.topLeading).frame(height:height,alignment:.top).foregroundStyle(.white).background(.black.opacity(0.96))
             .overlay(Rectangle().stroke(.white.opacity(0.45),lineWidth:1))
             .buttonStyle(SquareButton()).tint(.white).preferredColorScheme(.dark)
     }
@@ -94,6 +95,7 @@ struct HomeView: View {
                         if ProcessInfo.processInfo.arguments.contains("--gear-preview") {model.chooseLesson(LessonCatalog.gearbox.id);model.setStep(1);model.seek(2)}
                         if ProcessInfo.processInfo.arguments.contains("--independent-video-preview") {model.chooseLesson(LessonCatalog.jet.id);model.loops=true;model.showVideo()}
                         if ProcessInfo.processInfo.arguments.contains("--color-preview") {model.coloredModels=true}
+                        if ProcessInfo.processInfo.arguments.contains("--video-only-preview") {model.showVideo();model.toggleVideoOnly();model.movingVideo=true;model.moveVideo(to:[0.12,0.42,-0.4]);model.movingVideo=false}
                         if ProcessInfo.processInfo.arguments.contains("--brake-preview") {model.chooseLesson(LessonCatalog.brake.id);model.loops=true}
                         if ProcessInfo.processInfo.arguments.contains("--pump-preview") {model.chooseLesson(LessonCatalog.pump.id);model.loops=true}
                         if ProcessInfo.processInfo.arguments.contains("--settings-preview") {model.tab = .settings}
@@ -140,7 +142,7 @@ struct HomeView: View {
 struct LessonPanel: View {
     @Environment(StudioModel.self) private var model
     var body: some View {
-        DeskCard(title:"01 / LEARN") {
+        DeskCard(title:"01 / LEARN",height:820) {
             HStack { Text(model.course.title).font(.title2.bold()).lineLimit(1); Spacer(); Text(String(format:"%02d / %02d",model.step+1,model.stepCount)).font(.title3.monospacedDigit()) }
             if model.isPaperLesson {
             HStack(alignment:.top) {
@@ -170,7 +172,7 @@ struct LessonPanel: View {
                 Button("SHOW FINISH") {model.seek(model.progressDuration)}
             }.disabled(model.busyRecording)
             Text(model.currentStep.id=="inspect" ? (model.defectFound ? "FINDING MARKED · Compare the damaged part with its neighbors." : "Find the short blade or tooth and tap it. Inspect has a hint.") : "Watch this action, then try it. Say “next” to continue.").font(.system(size:11)).foregroundStyle(.secondary)
-        }.frame(width:400)
+        }.frame(width:470,height:820)
     }
 }
 
@@ -234,7 +236,7 @@ struct PlaybackControls: View {
 struct SpatialControls: View {
     @Environment(StudioModel.self) private var model
     var body: some View {
-        DeskCard(title:"02 / WORKSPACE") {
+        DeskCard(title:"02 / WORKSPACE",height:590) {
             HStack(spacing:4) {
                 ForEach([StudioTab.lessons,.record,.library,.placement,.settings],id:\.self) {tab in
                     Button(tab == .placement ? "Place" : tab.rawValue) {model.tab=tab}.buttonStyle(SquareButton(selected:model.tab==tab || (tab == .record && model.tab == .learn))).frame(maxWidth:.infinity)
@@ -307,7 +309,7 @@ struct PlacementPanel: View {
                 Text("VIDEO POSITION").font(.caption.monospaced())
                 HStack {Button("LOWER") {model.videoHeight=max(0.24,model.videoHeight-0.025)};Button("HIGHER") {model.videoHeight=min(0.55,model.videoHeight+0.025)}}
                 HStack {Button("CLOSER") {model.videoDepth=min(-0.18,model.videoDepth+0.025)};Button("FARTHER") {model.videoDepth=max(-0.5,model.videoDepth-0.025)}}
-                Button("RESET VIDEO POSITION") {model.videoHeight=0.30;model.videoDepth = -0.29}
+                Button("RESET VIDEO POSITION") {model.resetVideoPosition()}
             }
             if model.spatialCue != nil {
                 Text("Place arrows with your right fingertip.").font(.caption)

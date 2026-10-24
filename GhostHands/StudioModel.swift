@@ -79,6 +79,18 @@ final class StudioModel {
     var automaticVideo = true
     var dockedVideo=false
     var videoOwner:UUID?
+    var videoOnly=false
+    var movingVideo=false
+    var videoX:Float=0
+    var videoYaw:Float=0
+    var videoPosition:SIMD3<Float> {SIMD3(videoX,videoHeight,videoDepth)}
+    func moveVideo(to point:SIMD3<Float>) {
+        guard movingVideo,dockedVideo,workspaceVisible,point.isFinite,simd_length(point)<5 else{return}
+        videoX=point.x;videoHeight=point.y;videoDepth=point.z
+    }
+    func resetVideoPosition() {movingVideo=false;videoX=0;videoHeight=0.30;videoDepth = -0.29;videoYaw=0}
+    func closeReference() {movingVideo=false;videoClosed();dockedVideo=false}
+    func toggleVideoOnly() {videoOnly.toggle();if videoOnly {videoScale=max(videoScale,0.85)}}
     var videoHeight:Float=0.30
     var videoDepth:Float = -0.29
     var videoScale:Float=0.55

@@ -45,7 +45,7 @@ function bootFailure(){if(ready || bootFailed)return;bootFailed=true;post('boots
 setTimeout(bootFailure,25000);
 function onYouTubeIframeAPIReady() {
  if(bootFailed)return;
- player=new YT.Player('player',{width:'100%',height:'100%',playerVars:{playsinline:1,enablejsapi:1,origin:'https://com.calebwieman.ghosthands',rel:0},events:{
+ player=new YT.Player('player',{width:'100%',height:'100%',playerVars:{controls:0,playsinline:1,enablejsapi:1,origin:'https://com.calebwieman.ghosthands',rel:0},events:{
   onReady:()=>{if(bootFailed){player.pauseVideo();return;}ready=true;post('ready');if(command) window.ghostCommand(command);},
   onStateChange:()=>snapshot('state'),
   onPlaybackRateChange:()=>snapshot(),

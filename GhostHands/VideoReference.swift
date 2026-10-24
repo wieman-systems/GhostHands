@@ -8,89 +8,82 @@ struct VideoIntro:View {
 struct VideoReference:View {
     var embedded=false
     @State private var playerID=UUID()
-    @State private var editingLink=false
-    @State private var link=""
     @Environment(StudioModel.self) private var model
     @Environment(\.dismissWindow) private var dismiss
     var body:some View {
-        VStack(spacing:12) {
-            VStack(spacing:4) {
-                Text("YOUTUBE / \(model.course.title)").font(.headline).lineLimit(1)
-                Text(model.referenceTitle).font(.caption).lineLimit(1).foregroundStyle(.secondary)
-            }.frame(maxWidth:.infinity).frame(height:42)
-            VStack(spacing:8) {
-                if editingLink {
-                    TextField("Paste or dictate a YouTube video link",text:$link)
-                        .textInputAutocapitalization(.never).autocorrectionDisabled()
-                        .textFieldStyle(.plain).padding(12).overlay(Rectangle().stroke(.white.opacity(0.4)))
-                }
+        VStack(spacing:model.videoOnly ? 0 : 8) {
+            if !model.videoOnly {
+                VStack(spacing:4) {
+                    Text("YOUTUBE / \(model.course.title)").font(.headline).lineLimit(1)
+                    Text(model.movingVideo ? "Pinch and drag the screen. Tap Done on the table to lock it." : model.referenceTitle).font(.caption).lineLimit(1)
+                }.frame(height:42)
+            }
+            Group {
                 if model.hasReferenceVideo && (model.videoOwner == nil || model.videoOwner == playerID) && (embedded == model.dockedVideo) {
-                    YouTubePlayer(model:model,command:model.video.command,owner:playerID).id(model.video.playerGeneration)
+                    YouTubePlayer(model:model,command:model.video.command,owner:playerID,nativeControls:!embedded).id(model.video.playerGeneration)
                 } else {
-                    VStack(spacing:18) {
-                        Image(systemName:"play.rectangle").font(.system(size:42))
-                        Text("Watch YouTube alongside this model.").font(.title3)
-                        Text("Open More → Choose Video to select a reference or enter a YouTube link.")
-                            .font(.callout).multilineTextAlignment(.center)
-                    }.frame(maxWidth:.infinity,maxHeight:.infinity)
+                    Text("Choose a video from the YouTube controls on the table.").padding(32)
                 }
-            }.frame(height:430)
-            HStack(spacing:12) {
-                Spacer(minLength:0)
-                if editingLink {
-                    Button("LOAD") {if model.setReferenceVideo(link) {editingLink=false}}.frame(width:150).disabled(model.busyRecording || model.isAuthoring)
-                    Button("CANCEL") {editingLink=false}.frame(width:150)
-                } else {
-                    Button(model.video.playing ? "PAUSE" : "PLAY",systemImage:model.video.playing ? "pause.fill" : "play.fill") {model.toggleReferencePlayback()}
-                        .frame(width:150).disabled(!model.hasReferenceVideo || model.busyRecording || model.isAuthoring)
-                    Button("REPLAY",systemImage:"arrow.counterclockwise") {if model.linkedVideo {model.replayCurrent()} else {model.replayReference()}}
-                        .frame(width:150).disabled(!model.hasReferenceVideo || model.busyRecording || model.isAuthoring)
-                    videoMenu.frame(width:150)
-                    Button("CLOSE",systemImage:"xmark") {model.videoClosed(owner:playerID);if embedded {model.dockedVideo=false} else {dismiss(id:"video")}}.frame(width:150)
-                }
-                Spacer(minLength:0)
-            }.frame(height:44)
-            Text(model.video.failed ? model.video.status+" · More → Retry" : model.video.status)
-                .font(.caption).lineLimit(2).multilineTextAlignment(.center).frame(maxWidth:.infinity).frame(height:32)
-            Text(model.isAuthoring ? "Author mode · mark Start and End in the editor" : model.linkedVideo ? "Step Sync on · video follows the current step" : "Independent playback · video and model have separate controls")
-                .font(.caption).foregroundStyle(.secondary).lineLimit(1).frame(height:18)
-        }.padding(16).frame(width:800,height:650).background(.black).foregroundStyle(.white).buttonStyle(SquareButton()).environment(\.compactControls,true).preferredColorScheme(.dark)
-            .onAppear{link=model.referenceURL;if embedded == model.dockedVideo {model.videoOpened(owner:playerID)}}.onDisappear{model.videoClosed(owner:playerID)}
-            .onChange(of:model.course.id) {_,_ in link=model.referenceURL;editingLink=false}
+            }.frame(width:800,height:450)
+            if !embedded {VideoControlPanel().frame(width:470)}
+        }.frame(width:800).background(.black).foregroundStyle(.white).preferredColorScheme(.dark)
+            .onAppear {if embedded == model.dockedVideo {model.videoOpened(owner:playerID)}}
+            .onDisappear {model.videoClosed(owner:playerID)}
             .onChange(of:model.dockedVideo) {_,docked in if !embedded && docked {dismiss(id:"video")}}
             #if targetEnvironment(simulator)
             .task {if ProcessInfo.processInfo.arguments.contains("--sync-preview") {await verifyLivePlayer()};if ProcessInfo.processInfo.arguments.contains("--independent-video-preview") {await verifyIndependentPlayer()}}
             #endif
     }
+}
+
+/// Controls stay on the table even when the screen is moved or shown video-only.
+struct VideoControlPanel:View {
+    @Environment(StudioModel.self) private var model
+    @Environment(\.dismissWindow) private var dismiss
+    @State private var editingLink=false
+    @State private var link=""
+    var body:some View {
+        DeskCard(title:"03 / YOUTUBE",height:218) {
+            if editingLink {
+                TextField("Paste or dictate a YouTube link",text:$link).textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.plain).padding(8).overlay(Rectangle().stroke(.white.opacity(0.4))).frame(height:38)
+                HStack {
+                    Button("LOAD") {if model.setReferenceVideo(link) {editingLink=false;model.showVideo()}}.disabled(model.busyRecording || model.isAuthoring)
+                    Button("CANCEL") {editingLink=false}
+                }
+            } else {
+                HStack(spacing:8) {
+                    Button(model.video.playing ? "PAUSE" : "PLAY",systemImage:model.video.playing ? "pause.fill" : "play.fill") {model.toggleReferencePlayback()}.disabled(!model.hasReferenceVideo || !model.video.visible || model.busyRecording || model.isAuthoring)
+                    Button("REPLAY",systemImage:"arrow.counterclockwise") {if model.linkedVideo {model.replayCurrent()} else {model.replayReference()}}.disabled(!model.hasReferenceVideo || !model.video.visible || model.busyRecording || model.isAuthoring)
+                    videoMenu
+                }
+                HStack(spacing:8) {
+                    Button(model.movingVideo ? "DONE" : "MOVE",systemImage:"move.3d") {model.movingVideo.toggle()}.disabled(!model.dockedVideo)
+                    Button(model.videoOnly ? "FRAMED" : "VIDEO ONLY",systemImage:"arrow.up.left.and.arrow.down.right") {model.toggleVideoOnly()}.disabled(!model.dockedVideo)
+                    Button(model.video.visible ? "CLOSE" : "OPEN",systemImage:model.video.visible ? "xmark" : "play.rectangle") {if model.video.visible {model.closeReference();dismiss(id:"video")} else {model.showVideo()}}
+                }
+            }
+            Text(model.movingVideo ? "Pinch and drag the screen anywhere. Done locks it in place." : model.video.status).font(.caption).lineLimit(2).frame(height:30,alignment:.topLeading)
+        }.frame(width:470,height:218).environment(\.compactControls,true)
+            .onChange(of:model.course.id) {_,_ in editingLink=false}
+    }
     private var videoMenu:some View {
         Menu {
             Menu("Choose Video",systemImage:"play.rectangle") {
-                if model.course.hasVideo || model.course.mechanicalModel == .jet {Button("Lesson reference") {model.useLessonReference()}}
-                Button("Jet engine · Safran") {_ = model.setReferenceVideo(StudioModel.turbineVideo)}
-                Button("Car engine · Briggs & Stratton") {_ = model.setReferenceVideo(LessonCatalog.engine.videoURL)}
+                if model.course.hasVideo || model.course.mechanicalModel == .jet {Button("Lesson reference") {model.useLessonReference();model.showVideo()}}
+                Button("Jet engine · Safran") {_ = model.setReferenceVideo(StudioModel.turbineVideo);model.showVideo()}
+                Button("Car engine · Briggs & Stratton") {_ = model.setReferenceVideo(LessonCatalog.engine.videoURL);model.showVideo()}
                 Button("Enter a YouTube link…") {model.pauseVideo();link=model.referenceURL;editingLink=true}
                 Link("Find videos on YouTube",destination:model.youtubeSearchURL)
             }.disabled(model.busyRecording || model.isAuthoring)
-            if model.canSyncVideo {
-                Button(model.syncVideo ? "Turn Step Sync off" : "Turn Step Sync on") {model.setVideoSync(!model.syncVideo)}.disabled(model.busyRecording)
+            if model.canSyncVideo {Button(model.syncVideo ? "Turn Step Sync off" : "Turn Step Sync on") {model.setVideoSync(!model.syncVideo)}.disabled(model.busyRecording)}
+            Menu("Video Size") {
+                ForEach([Float(0.55),0.7,0.85,1.1,1.4],id:\.self) {scale in Button("\(Int(scale/0.55*100))%") {model.videoScale=scale}}
             }
-            if model.linkedVideo {
-                Button("Previous step") {model.setStep(model.step-1)}.disabled(model.step==0 || model.busyRecording || model.isAuthoring)
-                Button("Next step") {model.setStep(model.step+1)}.disabled(model.step>=model.stepCount-1 || model.busyRecording || model.isAuthoring)
-            } else {
-                Button(model.mode == .playing ? "Pause model" : "Play model") {model.playPause()}.disabled(!model.placed || model.busyRecording || model.isAuthoring)
-                Button(model.loops ? "Turn model looping off" : "Loop model") {model.toggleLoop()}.disabled(model.busyRecording || model.isAuthoring)
-            }
-            if embedded {
-                Menu("Video Size",systemImage:"arrow.up.left.and.arrow.down.right") {
-                    ForEach([Float(0.55),0.7,0.85],id:\.self) {scale in Button(scale==0.55 ? "Standard" : scale==0.7 ? "Large" : "Largest") {model.videoScale=scale}}
-                }
-            }
+            Button("Reset video position") {model.resetVideoPosition()}
             if model.video.failed {Button("Retry video") {model.retryVideo()}.disabled(model.busyRecording)}
             if let url=YouTubeLink(model.referenceURL)?.watchURL {Link("Open in YouTube",destination:url)}
         } label:{Label("MORE",systemImage:"chevron.down")}
     }
-
 }
 
 #if targetEnvironment(simulator)
@@ -139,6 +132,7 @@ struct YouTubePlayer:UIViewRepresentable {
     let model:StudioModel
     let command:VideoCommand?
     let owner:UUID
+    let nativeControls:Bool
     func makeCoordinator()->Coordinator {Coordinator(model:model,owner:owner)}
     func makeUIView(context:Context)->WKWebView {
         let configuration=WKWebViewConfiguration()
@@ -149,7 +143,7 @@ struct YouTubePlayer:UIViewRepresentable {
         view.isOpaque=false;view.backgroundColor = .black
         view.navigationDelegate=context.coordinator
         context.coordinator.webView=view
-        view.loadHTMLString(PlayerHTML.document,baseURL:URL(string:"https://com.calebwieman.ghosthands"))
+        view.loadHTMLString(nativeControls ? PlayerHTML.document.replacingOccurrences(of:"controls:0",with:"controls:1") : PlayerHTML.document,baseURL:URL(string:"https://com.calebwieman.ghosthands"))
         return view
     }
     func updateUIView(_ view:WKWebView,context:Context) {context.coordinator.apply(command)}

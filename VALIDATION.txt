@@ -1,3 +1,28 @@
+BUILD 14 — OCTOBER 24, 2026
+PASS: 82 core tests and 8 JavaScript player-controller scenarios. New tests cover
+video-only/player continuity, guarded independent screen movement, position
+retention across steps, reset/close, and continuous finite paper geometry within
+buffer capacity for every step at three widths and 181 progress values.
+PASS: Release device and Debug simulator builds. Strict signature verification
+before ZIP packaging and after extraction outside iCloud. Build14 archive retained.
+PASS: Rendered matched 470x820 left/right columns; right workspace590 + gap12 +
+YouTube controls218. Embedded presentation screen contains no playback toolbar.
+PASS: Rendered enlarged video-only screen at a simulated changed position. This
+uses the production move setter, not a physical gesture test. Native timeline
+remains available in standalone authoring; presentation uses controls=0.
+PASS: Frame-event-driven playback and continuous LowLevelMesh paper rendered in
+simulator. One reusable buffer replaces 45-pose quantization and per-pose meshes.
+PASS: Real boat player: initial20.089s, Next123.157s, endpoint134s, replay123.203s.
+Final independent video-only probe passed concurrent model/video advancement and
+both independent pause directions. YouTube service overlays/ads remain possible.
+PASS: Adversarial review; corrected native-authoring controls and drag target depth.
+PASS: Physical build14 installed, launched and independently version-checked.
+Documents and Library backed up before update; all 14 existing Documents files
+preserved (binary or JSON value comparison). Local receipt retained.
+NOT VERIFIED: Worn-headset frame rate, initial fingertip placement after the loop
+change, physical pinch-drag targeting/reach, or subjective smoothness. No headset
+FPS claim is made from simulator rendering or pure geometry tests.
+
 BUILD 13 — OCTOBER 24, 2026
 PASS: 79 core tests and 8 player-controller scenarios. New regressions cover
 catalog/draft freshness, bounded smooth video time, stale command rejection,
