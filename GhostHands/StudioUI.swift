@@ -17,7 +17,6 @@ struct SquareButton: ButtonStyle {
             .background(selected ? Color.white : Color.white.opacity(configuration.isPressed ? 0.24 : 0.06))
             .overlay(Rectangle().stroke(.white.opacity(selected ? 1 : 0.25),lineWidth:1))
             .contentShape(Rectangle()).opacity(enabled ? 1 : 0.35).hoverEffect(.highlight)
-            .modifier(LeftWatchFeedback(pressed:configuration.isPressed,enabled:enabled))
     }
 }
 struct DeskCard<Content: View>: View {

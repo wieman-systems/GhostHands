@@ -177,3 +177,10 @@ iPhone relay to a paired Apple Watch. Enable it in **Settings → Watch**.
 [Companion setup and current limits](Companion/README.md). Vision Pro and iPhone
 build 16 are installed and launched; actual Watch installation and haptic latency
 are not yet verified. 93 core tests pass.
+
+## Build 17 — restore normal button input
+
+Removed the experimental spatial-event recognizer from the shared button style
+after a reported workspace-entry regression. Standard SwiftUI button input is
+restored. Watch pairing and **Test Watch Tap** remain available under Settings →
+Watch; automatic left-hand button feedback is temporarily disabled.

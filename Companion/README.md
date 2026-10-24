@@ -1,5 +1,11 @@
 # Optional Apple Watch haptics
 
+**Build 17:** Automatic left-hand button pulses are temporarily disabled after a
+button-input regression. Pairing and **Test Watch Tap** remain available. The
+visionOS switch is now labeled **Connect Watch companion**. The original design
+and limits below describe build 16; do not treat normal button haptics as active.
+
+
 Build 16 adds an opt-in local relay: Vision Pro → iPhone → paired Apple Watch.
 The iPhone and Vision Pro builds are installed and launched. The Watch target builds,
 but physical Watch installation, paired-device messaging and tactile latency remain

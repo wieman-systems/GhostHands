@@ -1,3 +1,16 @@
+BUILD 17 — OCTOBER 24, 2026
+FIX: Removed LeftWatchFeedback / SpatialEventGesture from SquareButton, restoring
+its pre-build-16 gesture-free styling. The detector was installed even when Watch
+feedback was off and could consume standard button presses. Pair/test transport
+remains; automatic left-hand haptics is explicitly disabled in the UI and docs.
+PASS: Release visionOS and Debug simulator builds; strict signed ZIP verification
+before and after extraction. Home screen rendered in simulator.
+LIMIT: Native simulator-control tool timed out twice, so no successful manual
+workspace-entry activation is claimed for this build. Headset tap check pending.
+PASS: Build 17 installed and launched; independent version query confirms 17.
+All 16 pre-update Documents files preserved.
+Core logic unchanged; 93-test result below belongs to build 16.
+
 BUILD 16 — OCTOBER 24, 2026
 PASS: 93 core tests, including five new haptics input/protocol tests.
 PASS: Release device and Debug simulator builds for Vision Pro and the iPhone /
